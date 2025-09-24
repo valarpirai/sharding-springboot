@@ -1,0 +1,63 @@
+{
+  "properties": [
+    {
+      "name": "app.sharding.global-db.url",
+      "type": "java.lang.String",
+      "description": "JDBC URL for the global database containing tenant_shard_mapping table",
+      "defaultValue": null
+    },
+    {
+      "name": "app.sharding.global-db.username",
+      "type": "java.lang.String",
+      "description": "Username for global database connection",
+      "defaultValue": null
+    },
+    {
+      "name": "app.sharding.global-db.password",
+      "type": "java.lang.String",
+      "description": "Password for global database connection",
+      "defaultValue": null
+    },
+    {
+      "name": "app.sharding.global-db.hikari.maximum-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of connections in the global database pool",
+      "defaultValue": 10
+    },
+    {
+      "name": "app.sharding.tenant-column-names",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of column names that can be used as tenant identifiers",
+      "defaultValue": ["tenant_id", "company_id"]
+    },
+    {
+      "name": "app.sharding.validation.strictness",
+      "type": "com.valarpirai.sharding.config.ShardingConfigProperties$StrictnessLevel",
+      "description": "Validation strictness level for sharded entity queries",
+      "defaultValue": "STRICT"
+    }
+  ],
+  "hints": [
+    {
+      "name": "app.sharding.validation.strictness",
+      "values": [
+        {
+          "value": "STRICT",
+          "description": "Throw exception if tenant_id missing in sharded entity queries"
+        },
+        {
+          "value": "WARN",
+          "description": "Log warning but allow query to proceed"
+        },
+        {
+          "value": "LOG",
+          "description": "Log info message about missing tenant_id"
+        },
+        {
+          "value": "DISABLED",
+          "description": "No validation performed"
+        }
+      ]
+    }
+  ]
+}
