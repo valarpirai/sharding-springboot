@@ -2,6 +2,10 @@ package com.valarpirai.example.filter;
 
 import com.valarpirai.example.service.AccountValidationService;
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.context.TenantInfo;
+import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.TenantShardMapping;
+import com.valarpirai.sharding.routing.ConnectionRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -13,29 +17,29 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Filter to validate tenant (account-id) from request headers.
- * This filter runs after ShardSelectorFilter which has already set the tenant context
- * and resolved shard information. It validates that the tenant context matches the
- * request header and that the tenant account is valid and active.
+ * Filter to pre-resolve shard information based on tenant (account-id) from request headers.
+ * This filter runs before tenant validation and sets complete shard context upfront.
  *
- * Uses OncePerRequestFilter to ensure the filter is executed exactly once per request,
- * even in complex servlet forwarding scenarios.
+ * The resolved shard information is stored in TenantContext and used by RoutingDataSource
+ * to make routing decisions without dynamic shard lookups during query execution.
  */
 @Component
-@Order(1)
-public class TenantValidationFilter extends OncePerRequestFilter {
+@Order(0) // Run before TenantValidationFilter (Order 1)
+public class ShardSelectorFilter extends OncePerRequestFilter {
 
-    private static final Logger logger = LoggerFactory.getLogger(TenantValidationFilter.class);
+    private static final Logger logger = LoggerFactory.getLogger(ShardSelectorFilter.class);
 
     private static final String ACCOUNT_ID_HEADER = "account-id";
     private static final String CONTENT_TYPE_JSON = "application/json";
 
-    // Paths that don't require tenant validation
+    // Paths that don't require shard resolution
     private static final List<String> EXCLUDED_PATHS = Arrays.asList(
         "/api/signup",           // Account signup doesn't require existing tenant
         "/swagger-ui",           // Swagger UI
@@ -43,25 +47,31 @@ public class TenantValidationFilter extends OncePerRequestFilter {
         "/actuator"              // Health checks and monitoring
     );
 
+    private final ShardLookupService shardLookupService;
     private final AccountValidationService accountValidationService;
+    private final ConnectionRouter connectionRouter;
 
-    public TenantValidationFilter(AccountValidationService accountValidationService) {
+    public ShardSelectorFilter(ShardLookupService shardLookupService,
+                              AccountValidationService accountValidationService,
+                              ConnectionRouter connectionRouter) {
+        this.shardLookupService = shardLookupService;
         this.accountValidationService = accountValidationService;
+        this.connectionRouter = connectionRouter;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                   FilterChain filterChain) throws ServletException, IOException {
 
         String requestPath = request.getRequestURI();
         String method = request.getMethod();
 
-        logger.debug("Processing request: {} {}", method, requestPath);
+        logger.debug("Processing shard selection for request: {} {}", method, requestPath);
 
         try {
-            // Skip tenant validation for excluded paths
+            // Skip shard resolution for excluded paths
             if (shouldNotFilter(request)) {
-                logger.debug("Skipping tenant validation for excluded path: {}", requestPath);
+                logger.debug("Skipping shard resolution for excluded path: {}", requestPath);
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -70,9 +80,10 @@ public class TenantValidationFilter extends OncePerRequestFilter {
             String accountIdHeader = request.getHeader(ACCOUNT_ID_HEADER);
 
             if (accountIdHeader == null || accountIdHeader.trim().isEmpty()) {
-                logger.warn("Missing {} header for request: {} {}", ACCOUNT_ID_HEADER, method, requestPath);
-                sendErrorResponse(response, HttpStatus.BAD_REQUEST,
-                    "Missing required header: " + ACCOUNT_ID_HEADER);
+                logger.debug("No {} header found for request: {} {} - will use global DB",
+                    ACCOUNT_ID_HEADER, method, requestPath);
+                // Continue without setting tenant context - will use global DB
+                filterChain.doFilter(request, response);
                 return;
             }
 
@@ -96,34 +107,53 @@ public class TenantValidationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // Tenant context is already set by ShardSelectorFilter
-            // Just validate that it matches our account ID
-            Long contextTenantId = TenantContext.getCurrentTenantId();
-            if (contextTenantId == null || !contextTenantId.equals(accountId)) {
-                logger.error("Tenant context mismatch - header: {}, context: {}", accountId, contextTenantId);
+            // Resolve shard information for the tenant
+            try {
+                Optional<TenantShardMapping> mappingOpt = shardLookupService.findShardByTenantId(accountId);
+                if (!mappingOpt.isPresent() || !mappingOpt.get().isActive()) {
+                    logger.warn("No active shard mapping found for account: {}", accountId);
+                    sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Tenant shard configuration not found");
+                    return;
+                }
+
+                TenantShardMapping mapping = mappingOpt.get();
+                String shardId = mapping.getShardId();
+                DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
+
+                // Create TenantInfo with pre-resolved shard information
+                TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false);
+                tenantInfo.setShardDataSource(shardDataSource);
+
+                // Set complete tenant context
+                TenantContext.setTenantInfo(tenantInfo);
+
+                logger.debug("Set shard context - tenant: {}, shard: {} for request: {} {}",
+                    accountId, shardId, method, requestPath);
+
+            } catch (Exception e) {
+                logger.error("Failed to resolve shard for account {}: {}", accountId, e.getMessage(), e);
                 sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Tenant context validation failed");
+                    "Failed to resolve tenant shard information");
                 return;
             }
-
-            logger.debug("Validated tenant context for account_id: {} matches request: {} {}",
-                accountId, method, requestPath);
 
             // Continue with the request
             filterChain.doFilter(request, response);
 
         } catch (Exception e) {
-            logger.error("Error in tenant validation filter", e);
+            logger.error("Error in shard selector filter", e);
             sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
-                "Internal server error during tenant validation");
+                "Internal server error during shard selection");
         } finally {
-            // Tenant context clearing is handled by ShardSelectorFilter
-            logger.debug("Tenant validation completed for request: {} {}", method, requestPath);
+            // Always clear tenant context after request processing
+            TenantContext.clear();
+            logger.debug("Cleared shard context after request: {} {}", method, requestPath);
         }
     }
 
     /**
-     * Override shouldNotFilter to determine which requests should skip tenant validation.
+     * Override shouldNotFilter to determine which requests should skip shard resolution.
      * This method is called by OncePerRequestFilter to decide if the filter should be applied.
      */
     @Override
@@ -133,7 +163,7 @@ public class TenantValidationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Check if the request path should be excluded from tenant validation.
+     * Check if the request path should be excluded from shard resolution.
      */
     private boolean isExcludedPath(String requestPath) {
         return EXCLUDED_PATHS.stream().anyMatch(requestPath::startsWith);

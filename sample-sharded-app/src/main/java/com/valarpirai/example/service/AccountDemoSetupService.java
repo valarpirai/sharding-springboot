@@ -2,10 +2,12 @@ package com.valarpirai.example.service;
 
 import com.valarpirai.example.entity.*;
 import com.valarpirai.example.repository.*;
-import com.valarpirai.example.entity.*;
-import com.valarpirai.example.repository.*;
 import com.valarpirai.example.security.PermissionMasks;
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.context.TenantInfo;
+import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.TenantShardMapping;
+import com.valarpirai.sharding.routing.ConnectionRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.Optional;
 
 /**
  * Service for setting up demo environment after account creation.
@@ -30,19 +33,25 @@ public class AccountDemoSetupService {
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ShardLookupService shardLookupService;
+    private final ConnectionRouter connectionRouter;
 
     public AccountDemoSetupService(AccountRepository accountRepository,
                                  RoleRepository roleRepository,
                                  StatusRepository statusRepository,
                                  UserRepository userRepository,
                                  TicketRepository ticketRepository,
-                                 PasswordEncoder passwordEncoder) {
+                                 PasswordEncoder passwordEncoder,
+                                 ShardLookupService shardLookupService,
+                                 ConnectionRouter connectionRouter) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.statusRepository = statusRepository;
         this.userRepository = userRepository;
         this.ticketRepository = ticketRepository;
         this.passwordEncoder = passwordEncoder;
+        this.shardLookupService = shardLookupService;
+        this.connectionRouter = connectionRouter;
     }
 
     /**
@@ -58,8 +67,8 @@ public class AccountDemoSetupService {
                 throw new IllegalArgumentException("Account not found: " + accountId);
             }
 
-            // Execute all operations within tenant context
-            TenantContext.executeInTenantContext(accountId, () -> {
+            // Execute all operations within tenant context with pre-resolved shard information
+            executeWithShardContext(accountId, () -> {
                 setupDemoEnvironment(accountId);
                 return null;
             });
@@ -246,6 +255,45 @@ public class AccountDemoSetupService {
 
             ticketRepository.save(ticket);
             logger.debug("Created sample ticket '{}' for account: {}", ticket.getSubject(), accountId);
+        }
+    }
+
+    /**
+     * Execute a function within tenant context with pre-resolved shard information.
+     * This ensures background jobs work with the new shard selection approach.
+     */
+    private <T> T executeWithShardContext(Long accountId, java.util.function.Supplier<T> function) {
+        TenantInfo previousContext = TenantContext.getTenantInfo();
+        try {
+            // Resolve shard information for background job
+            Optional<TenantShardMapping> mappingOpt = shardLookupService.findShardByTenantId(accountId);
+            if (!mappingOpt.isPresent() || !mappingOpt.get().isActive()) {
+                throw new IllegalStateException("No active shard mapping found for account: " + accountId);
+            }
+
+            TenantShardMapping mapping = mappingOpt.get();
+            String shardId = mapping.getShardId();
+            javax.sql.DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
+
+            // Create TenantInfo with complete shard context
+            TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false);
+            tenantInfo.setShardDataSource(shardDataSource);
+
+            // Set tenant context with shard information
+            TenantContext.setTenantInfo(tenantInfo);
+            logger.debug("Set background job context - tenant: {}, shard: {}", accountId, shardId);
+
+            return function.get();
+        } catch (Exception e) {
+            logger.error("Failed to resolve shard context for background job: {}", accountId, e);
+            throw new RuntimeException("Background job shard resolution failed", e);
+        } finally {
+            if (previousContext != null) {
+                TenantContext.setTenantInfo(previousContext);
+            } else {
+                TenantContext.clear();
+            }
+            logger.debug("Restored background job context");
         }
     }
 }

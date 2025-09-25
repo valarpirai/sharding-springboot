@@ -1,5 +1,6 @@
 package com.valarpirai.sharding.config;
 
+import com.valarpirai.sharding.aspect.RepositoryShardingAspect;
 import com.valarpirai.sharding.cache.CacheStatisticsService;
 import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
@@ -21,6 +22,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -38,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Configuration
 @EnableConfigurationProperties(ShardingConfigProperties.class)
 @Import(CacheConfiguration.class)
+@EnableAspectJAutoProxy
 public class ShardingAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardingAutoConfiguration.class);
@@ -196,6 +199,18 @@ public class ShardingAutoConfiguration {
     @ConditionalOnMissingBean
     public CacheStatisticsService cacheStatisticsService(CacheManager cacheManager) {
         return new CacheStatisticsService(cacheManager, shardingConfig);
+    }
+
+    /**
+     * Repository sharding aspect for automatic sharded entity context management.
+     * This aspect automatically sets the appropriate context for repository operations
+     * based on the @ShardedEntity annotation of the entity class.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public RepositoryShardingAspect repositoryShardingAspect() {
+        logger.info("Creating RepositoryShardingAspect for automatic sharded entity context management");
+        return new RepositoryShardingAspect();
     }
 
     /**

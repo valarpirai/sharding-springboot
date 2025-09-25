@@ -102,6 +102,18 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring AOP for repository sharding aspect -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Spring Data JPA for repository interception -->
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-jpa</artifactId>
+        </dependency>
+
         <!-- Optional dependencies for database drivers -->
         <dependency>
             <groupId>org.postgresql</groupId>

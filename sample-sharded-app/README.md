@@ -1,189 +1,351 @@
-# Sample Sharded Application
+# Multi-Tenant Ticket Management System
 
-This is a demonstration Spring Boot application showcasing the Galaxy Sharding library with multi-tenancy and database sharding capabilities.
+A comprehensive Spring Boot application demonstrating database sharding and multi-tenancy with a complete ticket management system. Built using the Galaxy Sharding library for enterprise-grade tenant isolation.
 
-## Features Demonstrated
+## Features
 
-- **Multi-tenant Architecture**: Each tenant's data is isolated in separate shards
-- **Database Sharding**: Distributes tenant data across multiple databases
-- **Read/Write Splitting**: Master-replica configuration for each shard
-- **Entity Classification**: Sharded vs non-sharded entities
-- **Tenant Context Management**: Thread-local tenant information
-- **Query Validation**: Ensures tenant isolation at the SQL level
+- **Multi-Tenant Architecture**: Complete tenant isolation with database sharding
+- **Account Management**: Self-service account signup with automatic demo environment setup
+- **User Management**: Role-based access control with granular permissions
+- **Ticket Management**: Full-featured ticketing system with priorities, statuses, and assignments
+- **JWT Authentication**: Secure token-based authentication with tenant validation
+- **Database Sharding**: Automatic tenant routing to appropriate database shards
+- **Background Processing**: Asynchronous demo environment setup for new accounts
+- **Permission System**: Bitmask-based permissions for efficient role management
+- **Swagger Documentation**: Complete API documentation at `/swagger-ui/`
 
-## Entities
+## Architecture Overview
 
-### Sharded Entity
-- **Customer**: Marked with `@ShardedEntity`, stored in tenant-specific shards
-  - Must include `tenant_id` in all queries
-  - Automatically routed to appropriate shard based on tenant context
+### Database Structure
+- **Global Database**: `accounts` table and `tenant_shard_mapping`
+- **Sharded Databases**: `users`, `tickets`, `roles`, `statuses` tables (isolated per tenant)
+- **Tenant Isolation**: All requests validated by `account-id` header
 
-### Non-Sharded Entity
-- **GlobalConfig**: Not marked, stored in global database
-  - Shared across all tenants
-  - No tenant isolation required
+### Key Entities
+
+#### Global Entities (stored in global_db)
+- **Account**: Tenant information (id, name, admin_email, created_at)
+
+#### Sharded Entities (stored per tenant shard)
+- **User**: Tenant users with roles (account_id, email, password, role_id, active)
+- **Ticket**: Support tickets (account_id, subject, description, requester_id, responder_id, status_id, priority)
+- **Role**: User roles with permissions (account_id, name, permissions_mask, is_system_role)
+- **Status**: Ticket statuses (account_id, name, color, position, is_default)
 
 ## API Endpoints
 
-### Customer Operations
+### Account Signup
 ```http
-# Set tenant context (required before other operations)
-POST /api/customers/set-tenant/{tenantId}
-
-# Create customer
-POST /api/customers
+# Create new account with admin user and demo environment
+POST /api/signup
 Content-Type: application/json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
-  "phone": "123-456-7890"
+  "accountName": "Demo Company",
+  "adminEmail": "admin@demo.com",
+  "password": "password123"
 }
 
-# Get all customers for current tenant
-GET /api/customers
-
-# Get specific customer
-GET /api/customers/{id}
-
-# Update customer
-PUT /api/customers/{id}
-Content-Type: application/json
-{
-  "name": "John Smith",
-  "email": "johnsmith@example.com"
-}
-
-# Delete customer
-DELETE /api/customers/{id}
-
-# Clear tenant context
-POST /api/customers/clear-tenant
+# Health check
+GET /api/signup/health
 ```
 
-## Configuration
+### Authentication (requires account-id header)
+```http
+# Login
+POST /api/auth/login
+account-id: 1
+Content-Type: application/json
+{
+  "email": "admin@demo.com",
+  "password": "password123"
+}
 
-The application uses the following configuration structure:
+# Validate token
+GET /api/auth/validate
+Authorization: Bearer <jwt_token>
 
-```properties
-# Global Database (tenant_shard_mapping)
-app.sharding.global-db.url=jdbc:mysql://localhost:3306/global_db
-app.sharding.global-db.username=global_user
-app.sharding.global-db.password=global_password
+# Refresh token
+POST /api/auth/refresh
+Authorization: Bearer <jwt_token>
+```
 
-# Shard 1 (Latest shard for new signups)
-app.sharding.shard1.master.url=jdbc:mysql://localhost:3306/shard1_db
-app.sharding.shard1.replica1.url=jdbc:mysql://localhost:3307/shard1_db
-app.sharding.shard1.latest=true
+### User Management (requires account-id header + JWT)
+```http
+# Get all users
+GET /api/users
+account-id: 1
+Authorization: Bearer <jwt_token>
 
-# Shard 2
-app.sharding.shard2.master.url=jdbc:mysql://localhost:3309/shard2_db
-app.sharding.shard2.replica1.url=jdbc:mysql://localhost:3310/shard2_db
+# Create user
+POST /api/users
+account-id: 1
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+{
+  "email": "user@demo.com",
+  "password": "password123",
+  "firstName": "John",
+  "lastName": "Doe",
+  "roleId": 2,
+  "active": true
+}
 
-# Validation
-app.sharding.validation.strictness=STRICT
-app.sharding.tenant-column-names=tenant_id,company_id
+# Update user
+PUT /api/users/{id}
+account-id: 1
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+{
+  "firstName": "Jane",
+  "active": false
+}
+
+# Delete user (soft delete)
+DELETE /api/users/{id}
+account-id: 1
+Authorization: Bearer <jwt_token>
+```
+
+### Ticket Management (requires account-id header + JWT)
+```http
+# Get all tickets (with optional filters)
+GET /api/tickets?statusId=1&category=Technical&requesterId=2
+account-id: 1
+Authorization: Bearer <jwt_token>
+
+# Create ticket
+POST /api/tickets
+account-id: 1
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+{
+  "subject": "Login Issues",
+  "description": "Cannot login to my account",
+  "requesterId": 2,
+  "statusId": 1,
+  "priority": "HIGH",
+  "category": "Technical"
+}
+
+# Update ticket
+PUT /api/tickets/{id}
+account-id: 1
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+{
+  "statusId": 2,
+  "responderId": 3,
+  "priority": "MEDIUM"
+}
+
+# Assign ticket
+PUT /api/tickets/{id}/assign/{responderId}
+account-id: 1
+Authorization: Bearer <jwt_token>
+
+# Delete ticket (soft delete)
+DELETE /api/tickets/{id}
+account-id: 1
+Authorization: Bearer <jwt_token>
 ```
 
 ## Database Setup
 
-### 1. Global Database
-```sql
-CREATE DATABASE global_db;
-
-CREATE TABLE tenant_shard_mapping (
-    tenant_id BIGINT NOT NULL,
-    shard_id VARCHAR(255) NOT NULL,
-    region VARCHAR(255),
-    shard_status VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (tenant_id)
-);
-
-CREATE TABLE global_config (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    config_key VARCHAR(255) UNIQUE NOT NULL,
-    config_value TEXT NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-```
-
-### 2. Shard Databases
-```sql
--- Create for each shard (shard1_db, shard2_db, etc.)
-CREATE DATABASE shard1_db;
-
-CREATE TABLE customers (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    tenant_id BIGINT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_tenant_id (tenant_id)
-);
-```
-
-### 3. Sample Data
-```sql
--- Insert tenant-shard mappings
-INSERT INTO global_db.tenant_shard_mapping (tenant_id, shard_id, region, shard_status) VALUES
-(1001, 'shard1', 'us-east-1', 'ACTIVE'),
-(1002, 'shard1', 'us-east-1', 'ACTIVE'),
-(1003, 'shard2', 'us-west-2', 'ACTIVE');
-
--- Insert global configuration
-INSERT INTO global_db.global_config (config_key, config_value, description) VALUES
-('max_customers_per_tenant', '1000', 'Maximum customers allowed per tenant'),
-('default_region', 'us-east-1', 'Default region for new signups');
-```
-
-## Running the Application
-
-1. **Start MySQL databases** with the configured ports and databases
-2. **Run the application**:
-   ```bash
-   mvn spring-boot:run
-   ```
-3. **Test the endpoints** using the provided API examples
-
-## Testing Multi-Tenancy
-
+### Quick Setup
 ```bash
-# Set tenant context to 1001
-curl -X POST http://localhost:8080/api/customers/set-tenant/1001
+# 1. Ensure PostgreSQL is running
+brew services start postgresql  # macOS
+# OR
+sudo systemctl start postgresql  # Ubuntu
 
-# Create customer for tenant 1001
-curl -X POST http://localhost:8080/api/customers \
+# 2. Run the setup script
+psql -U postgres -f database-setup.sql
+
+# 3. Start the application
+mvn spring-boot:run
+```
+
+### Database Schema
+
+The setup script creates:
+
+#### Global Database (global_db)
+```sql
+-- Accounts (tenants)
+accounts (id, name, admin_email, created_at, updated_at, deleted)
+
+-- Tenant-shard mapping (used by sharding library)
+tenant_shard_mapping (tenant_id, shard_id, region, shard_status, created_at)
+```
+
+#### Shard Database (shard1_db)
+```sql
+-- Users with roles
+users (id, account_id, email, password_hash, first_name, last_name, role_id, active, created_at, updated_at, deleted)
+
+-- Support tickets
+tickets (id, account_id, subject, description, requester_id, responder_id, status_id, priority, category, subcategory, created_at, updated_at, resolved_at, deleted)
+
+-- User roles with permission bitmasks
+roles (id, account_id, name, permissions_mask, is_system_role, created_at, updated_at, deleted)
+
+-- Ticket statuses
+statuses (id, account_id, name, color, position, is_default, created_at, updated_at, deleted)
+```
+
+### Sample Data Included
+- 1 demo account ("Demo Company")
+- 3 users: Admin, Agent, Requester (including demo user andrea@example.com)
+- 3 system roles: ADMIN, AGENT, REQUESTER with proper permissions
+- 5 ticket statuses: Open, In Progress, Resolved, Closed, On Hold
+- 5 sample tickets with different priorities and statuses
+
+## Configuration
+
+### Application Properties
+```properties
+# Database Configuration
+spring.datasource.url=jdbc:postgresql://localhost:5432/global_db
+spring.datasource.username=postgres
+spring.datasource.password=
+
+# Sharding Configuration (handled by sharding library)
+app.sharding.global-db.url=jdbc:postgresql://localhost:5432/global_db
+app.sharding.shards.shard1.master.url=jdbc:postgresql://localhost:5432/shard1_db
+app.sharding.shards.shard1.latest=true
+
+# JWT Configuration
+app.jwt.secret=mySecretKey123456789012345678901234567890
+app.jwt.expiration=3600000
+
+# Swagger Documentation
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+```
+
+## Permission System
+
+### Permission Structure
+The system uses a bitmask-based permission system defined in `permissions.yml`:
+
+- **Account Management**: CREATE_ACCOUNT, UPDATE_ACCOUNT, DELETE_ACCOUNT, etc.
+- **User Management**: CREATE_USER, UPDATE_USER, DELETE_USER, etc.
+- **Ticket Management**: CREATE_TICKET, UPDATE_TICKET, ASSIGN_TICKET, etc.
+- **Role Management**: CREATE_ROLE, UPDATE_ROLE, DELETE_ROLE, etc.
+- **Status Management**: CREATE_STATUS, UPDATE_STATUS, DELETE_STATUS, etc.
+
+### Default Roles
+- **ADMIN**: Full permissions (all operations)
+- **AGENT**: Ticket management, user viewing, status management
+- **REQUESTER**: Create/view own tickets, view users
+
+## Development Workflow
+
+### 1. Account Signup Flow
+1. `POST /api/signup` creates account in global database
+2. Maps new account to latest shard using `ShardLookupService`
+3. Creates admin user and ADMIN role in tenant shard
+4. Triggers background `AccountDemoSetupService` to:
+   - Create default roles (ADMIN, AGENT, REQUESTER)
+   - Create default ticket statuses
+   - Create demo user (andrea@example.com)
+   - Create 3 sample tickets
+
+### 2. Request Flow
+1. Client sends request with `account-id` header
+2. `TenantValidationFilter` validates tenant and sets `TenantContext`
+3. Sharding library routes queries to appropriate shard
+4. Business logic operates on tenant-isolated data
+5. Response returned, context cleared
+
+### 3. Authentication Flow
+1. Client login with email/password + account-id header
+2. `AuthService` validates credentials in tenant shard
+3. `JwtService` generates signed JWT with user info
+4. Client uses JWT in Authorization header for subsequent requests
+5. JWT validated and user context established
+
+## Testing the System
+
+### 1. Create Account
+```bash
+curl -X POST http://localhost:8080/api/signup \
   -H "Content-Type: application/json" \
-  -d '{"name":"Alice Johnson","email":"alice@tenant1.com"}'
+  -d '{
+    "accountName": "Test Company",
+    "adminEmail": "admin@test.com",
+    "password": "password123"
+  }'
+```
 
-# Switch to tenant 1002
-curl -X POST http://localhost:8080/api/customers/set-tenant/1002
-
-# Create customer for tenant 1002
-curl -X POST http://localhost:8080/api/customers \
+### 2. Login
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"name":"Bob Smith","email":"bob@tenant2.com"}'
+  -H "account-id: 1" \
+  -d '{
+    "email": "admin@test.com",
+    "password": "password123"
+  }'
+```
 
-# Verify isolation - get customers for tenant 1001
-curl -X POST http://localhost:8080/api/customers/set-tenant/1001
-curl http://localhost:8080/api/customers
-# Should only return Alice Johnson
+### 3. Create Ticket
+```bash
+curl -X POST http://localhost:8080/api/tickets \
+  -H "Content-Type: application/json" \
+  -H "account-id: 1" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -d '{
+    "subject": "System Bug",
+    "description": "Found a critical bug",
+    "requesterId": 2,
+    "statusId": 1,
+    "priority": "HIGH"
+  }'
 ```
 
 ## Key Features in Action
 
-1. **Automatic Routing**: Customers are automatically routed to correct shard based on tenant_id
-2. **Tenant Isolation**: Each tenant only sees their own data
-3. **Latest Shard**: New tenant signups use the shard marked as `latest=true`
-4. **Query Validation**: SQL queries without tenant_id are rejected (configurable)
-5. **Read/Write Splitting**: Reads can be distributed across replicas
+### 1. Tenant Isolation
+- Each account's data is completely isolated in separate database shards
+- Cross-tenant data access is impossible due to query validation
+- Automatic routing ensures queries hit the correct shard
+
+### 2. Background Processing
+- New account signup triggers asynchronous demo environment setup
+- Uses `@Async` with dedicated thread pool for background tasks
+- Proper tenant context management in background jobs
+
+### 3. Security
+- JWT-based authentication with tenant validation
+- Role-based access control with granular permissions
+- Password hashing using BCrypt
+- SQL injection protection through parameterized queries
+
+### 4. Scalability
+- New tenants automatically assigned to latest shard
+- Horizontal scaling through additional shards
+- Caching of tenant-shard mappings for performance
+- Soft deletes for data retention and audit trails
+
+## API Documentation
+
+Once the application is running, visit:
+- **Swagger UI**: http://localhost:8080/swagger-ui/
+- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
+
+## Monitoring and Observability
+
+The application includes:
+- Comprehensive logging with tenant context
+- SQL query logging for debugging
+- Performance metrics for shard operations
+- Health check endpoints for monitoring
 
 ## Next Steps
 
-- Implement JWT-based tenant identification instead of manual context setting
-- Add tenant onboarding workflow that assigns new tenants to latest shard
-- Implement background jobs using tenant iterator for cross-tenant operations
-- Add monitoring and metrics for shard utilization
+- **Horizontal Scaling**: Add more shards as tenant count grows
+- **Advanced Security**: Implement API rate limiting and audit logging
+- **Real-time Features**: Add WebSocket support for real-time ticket updates
+- **Analytics**: Implement tenant-specific reporting and analytics
+- **Migration Tools**: Build tools for moving tenants between shards

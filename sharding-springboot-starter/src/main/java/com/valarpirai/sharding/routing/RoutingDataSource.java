@@ -2,6 +2,7 @@ package com.valarpirai.sharding.routing;
 
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.context.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.datasource.AbstractDataSource;
@@ -78,6 +79,8 @@ public class RoutingDataSource extends AbstractDataSource {
 
     /**
      * Determine the target DataSource based on current context.
+     * Uses pre-resolved shard information from TenantContext when available,
+     * falling back to ConnectionRouter for dynamic resolution.
      *
      * @return the appropriate DataSource
      * @throws SQLException if routing fails
@@ -86,13 +89,33 @@ public class RoutingDataSource extends AbstractDataSource {
         try {
             boolean forShardedEntity = isShardedEntityContext();
 
+            // Check if we have pre-resolved shard information
+            TenantInfo tenantInfo = TenantContext.getTenantInfo();
+
             if (logger.isDebugEnabled()) {
                 Long tenantId = TenantContext.getCurrentTenantId();
                 boolean readOnly = TenantContext.isReadOnlyMode();
-                logger.debug("Routing connection - tenant: {}, sharded: {}, readOnly: {}",
-                           tenantId, forShardedEntity, readOnly);
+                String shardId = tenantInfo != null ? tenantInfo.getShardId() : "none";
+                boolean hasPreResolvedShard = tenantInfo != null && tenantInfo.getShardDataSource() != null;
+                logger.debug("Routing connection - tenant: {}, sharded: {}, readOnly: {}, shard: {}, preResolved: {}",
+                           tenantId, forShardedEntity, readOnly, shardId, hasPreResolvedShard);
             }
 
+            // Use pre-resolved shard information if available
+            if (tenantInfo != null && tenantInfo.getShardDataSource() != null) {
+                if (forShardedEntity) {
+                    // For sharded entities, use the pre-resolved shard DataSource
+                    logger.debug("Using pre-resolved shard DataSource for sharded entity");
+                    return tenantInfo.getShardDataSource();
+                } else {
+                    // For non-sharded entities, always use global database
+                    logger.debug("Using global DataSource for non-sharded entity");
+                    return connectionRouter.routeDataSource(false);
+                }
+            }
+
+            // Fallback to dynamic routing via ConnectionRouter
+            logger.debug("Using ConnectionRouter for dynamic DataSource resolution");
             return connectionRouter.routeDataSource(forShardedEntity);
 
         } catch (RoutingException e) {
