@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -140,8 +141,8 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public EntityValidator entityValidator() {
-        return new EntityValidator(shardingConfig, null); // ApplicationContext will be injected
+    public EntityValidator entityValidator(ApplicationContext applicationContext) {
+        return new EntityValidator(shardingConfig, applicationContext);
     }
 
     /**

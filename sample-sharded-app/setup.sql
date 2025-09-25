@@ -1,5 +1,12 @@
--- Galaxy Sharding Demo Database Setup Script
--- Run this script to set up the databases for the sample application
+-- Database Setup Script
+--
+-- NOTICE: This project now uses PostgreSQL by default.
+-- Please use database-setup-postgresql.sql instead of this file.
+--
+-- To run the PostgreSQL setup:
+-- psql -U postgres -f database-setup-postgresql.sql
+--
+-- The content below is the original MySQL setup (kept for reference):
 
 -- ========================================
 -- 1. Create Databases

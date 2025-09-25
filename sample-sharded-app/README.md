@@ -144,7 +144,7 @@ INSERT INTO global_db.global_config (config_key, config_value, description) VALU
 1. **Start MySQL databases** with the configured ports and databases
 2. **Run the application**:
    ```bash
-   ./gradlew bootRun
+   mvn spring-boot:run
    ```
 3. **Test the endpoints** using the provided API examples
 

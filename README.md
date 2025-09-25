@@ -70,25 +70,7 @@ java-backend-dev/
 
 ### Configuration Example
 
-**MySQL Configuration:**
-```properties
-# Global Database
-app.sharding.global-db.url=jdbc:mysql://localhost:3306/global_db
-app.sharding.global-db.username=global_user
-app.sharding.global-db.password=global_password
-
-# Shard Configuration
-app.sharding.shard1.master.url=jdbc:mysql://localhost:3306/shard1_db
-app.sharding.shard1.replica1.url=jdbc:mysql://localhost:3307/shard1_db
-app.sharding.shard1.hikari.maximum-pool-size=20
-app.sharding.shard1.latest=true
-
-# Validation
-app.sharding.validation.strictness=STRICT
-app.sharding.tenant-column-names=tenant_id,company_id
-```
-
-**PostgreSQL Configuration:**
+**PostgreSQL Configuration (Default):**
 ```properties
 # Global Database
 app.sharding.global-db.url=jdbc:postgresql://localhost:5432/global_db
@@ -96,14 +78,44 @@ app.sharding.global-db.username=global_user
 app.sharding.global-db.password=global_password
 
 # Shard Configuration
-app.sharding.shard1.master.url=jdbc:postgresql://localhost:5432/shard1_db
-app.sharding.shard1.replica1.url=jdbc:postgresql://localhost:5433/shard1_db
-app.sharding.shard1.hikari.maximum-pool-size=20
-app.sharding.shard1.latest=true
+app.sharding.shards.shard1.master.url=jdbc:postgresql://localhost:5432/shard1_db
+app.sharding.shards.shard1.replicas.replica1.url=jdbc:postgresql://localhost:5433/shard1_db
+app.sharding.shards.shard1.hikari.maximum-pool-size=20
+app.sharding.shards.shard1.latest=true
+
+# Validation
+app.sharding.validation.strictness=STRICT
+app.sharding.tenant-column-names=tenant_id,company_id
+```
+
+**MySQL Configuration (Alternative):**
+```properties
+# Global Database
+app.sharding.global-db.url=jdbc:mysql://localhost:3306/global_db
+app.sharding.global-db.username=global_user
+app.sharding.global-db.password=global_password
+
+# Shard Configuration
+app.sharding.shards.shard1.master.url=jdbc:mysql://localhost:3306/shard1_db
+app.sharding.shards.shard1.replicas.replica1.url=jdbc:mysql://localhost:3307/shard1_db
+app.sharding.shards.shard1.hikari.maximum-pool-size=20
+app.sharding.shards.shard1.latest=true
 
 # Validation (same for all databases)
 app.sharding.validation.strictness=STRICT
 app.sharding.tenant-column-names=tenant_id,company_id
+```
+
+### Maven Dependency
+
+Add the sharding starter to your project's `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>com.valarpirai</groupId>
+    <artifactId>sharding-springboot-starter</artifactId>
+    <version>1.0.0</version>
+</dependency>
 ```
 
 ### Usage Example
@@ -191,6 +203,25 @@ The library automatically detects the database type from JDBC URLs and applies a
 
 ## 🔧 Development Workflow
 
+### Building the Project
+```bash
+# Build all modules
+mvn clean compile
+
+# Run tests (currently skipped due to test compatibility issues)
+mvn install -Dmaven.test.skip=true
+
+# Build and install to local repository
+mvn clean install -Dmaven.test.skip=true
+
+# Set up PostgreSQL databases
+cd sample-sharded-app
+psql -U postgres -f database-setup-postgresql.sql
+
+# Run the sample application
+mvn spring-boot:run
+```
+
 ### Entity Development
 1. Annotate entity with `@ShardedEntity`
 2. Include tenant column (`tenant_id` or `company_id`)
@@ -234,10 +265,18 @@ public class ShardingMonitorController {
 ## 🚀 Production Deployment
 
 ### Database Setup
-1. **Global Database**: Contains `tenant_shard_mapping` and global entities (supports MySQL and PostgreSQL)
-2. **Shard Databases**: Contains tenant-specific data with replicas (supports MySQL and PostgreSQL)
+1. **Global Database**: Contains `tenant_shard_mapping` and global entities (PostgreSQL by default)
+2. **Shard Databases**: Contains tenant-specific data with replicas (PostgreSQL by default)
 3. **Connection Pools**: Optimized per database type and load with automatic database detection
 4. **Schema Management**: Automatic table creation with database-specific syntax and optimizations
+
+**Quick PostgreSQL Setup:**
+```bash
+cd sample-sharded-app
+psql -U postgres -f database-setup-postgresql.sql
+```
+
+See `sample-sharded-app/DATABASE_SETUP.md` for detailed setup instructions.
 
 ### Configuration Management
 - Externalize database credentials

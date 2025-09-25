@@ -82,11 +82,16 @@ public class ValidatingDataSource extends AbstractDataSource {
      * Wrap a connection with validation logic.
      */
     private Connection wrapConnection(Connection connection) {
-        return new ValidatingConnectionProxy(
+        ValidatingConnectionProxy proxy = new ValidatingConnectionProxy(
                 connection,
                 queryValidator,
                 this::isShardedEntityContext,
                 this::getTableNameContext
+        );
+        return (Connection) java.lang.reflect.Proxy.newProxyInstance(
+                connection.getClass().getClassLoader(),
+                new Class[]{Connection.class},
+                proxy
         );
     }
 

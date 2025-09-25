@@ -1,15 +1,39 @@
 -- PostgreSQL Database Setup Script for Sample Sharded Application
 -- This script sets up the databases and sample data for testing the sharding library
+-- Run as PostgreSQL superuser (e.g., postgres)
+
+-- ===========================
+-- Create Users and Databases
+-- ===========================
+
+-- Create users for database access
+CREATE USER global_user WITH PASSWORD 'global_password';
+CREATE USER shard1_user WITH PASSWORD 'shard1_password';
+CREATE USER shard2_user WITH PASSWORD 'shard2_password';
+
+-- Create databases
+CREATE DATABASE global_db OWNER global_user;
+CREATE DATABASE shard1_db OWNER shard1_user;
+CREATE DATABASE shard2_db OWNER shard2_user;
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE global_db TO global_user;
+GRANT ALL PRIVILEGES ON DATABASE shard1_db TO shard1_user;
+GRANT ALL PRIVILEGES ON DATABASE shard2_db TO shard2_user;
 
 -- ===========================
 -- Global Database Setup
 -- ===========================
 
--- Create global database
-CREATE DATABASE global_db;
-
 -- Connect to global database
 \c global_db;
+
+-- Grant schema privileges to global_user
+GRANT ALL PRIVILEGES ON SCHEMA public TO global_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO global_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO global_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO global_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO global_user;
 
 -- Create tenant_shard_mapping table (automatically created by the library)
 -- This is shown for reference only
@@ -66,6 +90,13 @@ CREATE DATABASE shard1_db;
 
 -- Connect to shard1 database
 \c shard1_db;
+
+-- Grant schema privileges to shard1_user
+GRANT ALL PRIVILEGES ON SCHEMA public TO shard1_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO shard1_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO shard1_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO shard1_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO shard1_user;
 
 -- Customers table (sharded entity)
 CREATE TABLE customers (
@@ -162,6 +193,13 @@ CREATE DATABASE shard2_db;
 
 -- Connect to shard2 database
 \c shard2_db;
+
+-- Grant schema privileges to shard2_user
+GRANT ALL PRIVILEGES ON SCHEMA public TO shard2_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO shard2_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO shard2_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO shard2_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO shard2_user;
 
 -- Create the same schema as shard1
 CREATE TABLE customers (

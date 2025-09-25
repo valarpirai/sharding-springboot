@@ -21,11 +21,6 @@ A comprehensive Spring Boot auto-configuration library for multi-tenant database
 
 ### 1. Add Dependency
 
-**Gradle:**
-```kotlin
-implementation("com.valarpirai:sharding-springboot-starter:1.0.0")
-```
-
 **Maven:**
 ```xml
 <dependency>
@@ -771,7 +766,7 @@ mysql < sample-sharded-app/database-setup.sql
 
 # Run the application
 cd sample-sharded-app
-./gradlew bootRun
+mvn spring-boot:run
 ```
 
 ### Running with PostgreSQL
@@ -781,7 +776,7 @@ psql -f sample-sharded-app/database-setup-postgresql.sql
 
 # Run with PostgreSQL profile
 cd sample-sharded-app
-./gradlew bootRun --args='--spring.profiles.active=postgresql'
+mvn spring-boot:run -Dspring-boot.run.profiles=postgresql
 ```
 
 ### Sample API Usage

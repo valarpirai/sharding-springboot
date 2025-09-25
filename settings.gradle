@@ -1,4 +1,0 @@
-rootProject.name = 'java-backend-dev'
-
-include 'sharding-springboot-starter'
-include 'sample-sharded-app'
