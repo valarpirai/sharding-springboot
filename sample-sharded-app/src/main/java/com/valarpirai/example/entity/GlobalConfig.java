@@ -1,4 +1,4 @@
-package com.example.demo.entity;
+package com.valarpirai.example.entity;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;

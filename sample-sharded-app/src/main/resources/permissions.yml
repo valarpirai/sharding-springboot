@@ -1,0 +1,228 @@
+# Permission System Configuration
+# Each permission is assigned a bit position for bitmask storage
+# Permissions are grouped by functional area for better organization
+
+permissions:
+  # Account Management Permissions (bits 0-7)
+  account:
+    - name: ACCOUNT_VIEW
+      bit: 0
+      description: "View account information and settings"
+    - name: ACCOUNT_EDIT
+      bit: 1
+      description: "Edit account settings and configuration"
+
+  # User Management Permissions (bits 8-15)
+  user:
+    - name: USER_CREATE
+      bit: 8
+      description: "Create new users within the account"
+    - name: USER_VIEW_ALL
+      bit: 9
+      description: "View all users in the account"
+    - name: USER_VIEW_OWN
+      bit: 10
+      description: "View own user profile and information"
+    - name: USER_EDIT_ALL
+      bit: 11
+      description: "Edit any user in the account"
+    - name: USER_EDIT_OWN
+      bit: 12
+      description: "Edit own user profile and information"
+    - name: USER_DELETE
+      bit: 13
+      description: "Delete users from the account"
+    - name: USER_ASSIGN_ROLE
+      bit: 14
+      description: "Assign roles to users"
+
+  # Ticket Management Permissions (bits 16-31)
+  ticket:
+    - name: TICKET_CREATE
+      bit: 16
+      description: "Create new tickets"
+    - name: TICKET_VIEW_ALL
+      bit: 17
+      description: "View all tickets in the account"
+    - name: TICKET_VIEW_OWN
+      bit: 18
+      description: "View tickets created by or assigned to the user"
+    - name: TICKET_EDIT_ALL
+      bit: 19
+      description: "Edit any ticket in the account"
+    - name: TICKET_EDIT_OWN
+      bit: 20
+      description: "Edit tickets created by or assigned to the user"
+    - name: TICKET_DELETE
+      bit: 21
+      description: "Delete tickets (soft delete)"
+    - name: TICKET_ASSIGN
+      bit: 22
+      description: "Assign tickets to users"
+    - name: TICKET_CHANGE_STATUS
+      bit: 23
+      description: "Change ticket status"
+    - name: TICKET_ADD_COMMENT
+      bit: 24
+      description: "Add comments to tickets"
+    - name: TICKET_VIEW_COMMENTS
+      bit: 25
+      description: "View ticket comments"
+
+  # Role Management Permissions (bits 32-39)
+  role:
+    - name: ROLE_CREATE
+      bit: 32
+      description: "Create new custom roles"
+    - name: ROLE_VIEW
+      bit: 33
+      description: "View roles and their permissions"
+    - name: ROLE_EDIT
+      bit: 34
+      description: "Edit custom roles and their permissions"
+    - name: ROLE_DELETE
+      bit: 35
+      description: "Delete custom roles"
+
+  # Status Management Permissions (bits 40-47)
+  status:
+    - name: STATUS_CREATE
+      bit: 40
+      description: "Create new ticket statuses"
+    - name: STATUS_VIEW
+      bit: 41
+      description: "View available ticket statuses"
+    - name: STATUS_EDIT
+      bit: 42
+      description: "Edit ticket statuses and their properties"
+    - name: STATUS_DELETE
+      bit: 43
+      description: "Delete ticket statuses"
+    - name: STATUS_REORDER
+      bit: 44
+      description: "Change the order/position of statuses"
+
+  # Reporting and Analytics Permissions (bits 48-55)
+  reporting:
+    - name: REPORTING_VIEW_BASIC
+      bit: 48
+      description: "View basic reports and statistics"
+    - name: REPORTING_VIEW_ADVANCED
+      bit: 49
+      description: "View advanced reports and analytics"
+    - name: REPORTING_EXPORT
+      bit: 50
+      description: "Export reports and data"
+
+# Default role configurations with their permission masks
+default_roles:
+  ADMIN:
+    description: "Full administrative access to all features"
+    is_system_role: true
+    permissions:
+      # All permissions enabled (bits 0-55)
+      - ACCOUNT_VIEW
+      - ACCOUNT_EDIT
+      - USER_CREATE
+      - USER_VIEW_ALL
+      - USER_VIEW_OWN
+      - USER_EDIT_ALL
+      - USER_EDIT_OWN
+      - USER_DELETE
+      - USER_ASSIGN_ROLE
+      - TICKET_CREATE
+      - TICKET_VIEW_ALL
+      - TICKET_VIEW_OWN
+      - TICKET_EDIT_ALL
+      - TICKET_EDIT_OWN
+      - TICKET_DELETE
+      - TICKET_ASSIGN
+      - TICKET_CHANGE_STATUS
+      - TICKET_ADD_COMMENT
+      - TICKET_VIEW_COMMENTS
+      - ROLE_CREATE
+      - ROLE_VIEW
+      - ROLE_EDIT
+      - ROLE_DELETE
+      - STATUS_CREATE
+      - STATUS_VIEW
+      - STATUS_EDIT
+      - STATUS_DELETE
+      - STATUS_REORDER
+      - REPORTING_VIEW_BASIC
+      - REPORTING_VIEW_ADVANCED
+      - REPORTING_EXPORT
+
+  AGENT:
+    description: "Support agent with ticket management capabilities"
+    is_system_role: true
+    permissions:
+      # Limited account access
+      - ACCOUNT_VIEW
+      # User viewing (not creation/editing)
+      - USER_VIEW_ALL
+      - USER_VIEW_OWN
+      - USER_EDIT_OWN
+      # Full ticket management
+      - TICKET_CREATE
+      - TICKET_VIEW_ALL
+      - TICKET_VIEW_OWN
+      - TICKET_EDIT_ALL
+      - TICKET_EDIT_OWN
+      - TICKET_ASSIGN
+      - TICKET_CHANGE_STATUS
+      - TICKET_ADD_COMMENT
+      - TICKET_VIEW_COMMENTS
+      # View-only role and status access
+      - ROLE_VIEW
+      - STATUS_VIEW
+      # Basic reporting
+      - REPORTING_VIEW_BASIC
+
+  REQUESTER:
+    description: "Basic user who can create and manage their own tickets"
+    is_system_role: true
+    permissions:
+      # Basic account access
+      - ACCOUNT_VIEW
+      # Own user management only
+      - USER_VIEW_OWN
+      - USER_EDIT_OWN
+      # Limited ticket access (own tickets only)
+      - TICKET_CREATE
+      - TICKET_VIEW_OWN
+      - TICKET_EDIT_OWN
+      - TICKET_ADD_COMMENT
+      - TICKET_VIEW_COMMENTS
+      # View-only access to statuses
+      - STATUS_VIEW
+
+# Permission validation rules
+validation:
+  # Permissions that require other permissions to be meaningful
+  dependencies:
+    - permission: USER_EDIT_ALL
+      requires: [USER_VIEW_ALL]
+    - permission: USER_DELETE
+      requires: [USER_VIEW_ALL]
+    - permission: TICKET_EDIT_ALL
+      requires: [TICKET_VIEW_ALL]
+    - permission: TICKET_DELETE
+      requires: [TICKET_VIEW_ALL]
+    - permission: ROLE_EDIT
+      requires: [ROLE_VIEW]
+    - permission: ROLE_DELETE
+      requires: [ROLE_VIEW]
+    - permission: STATUS_EDIT
+      requires: [STATUS_VIEW]
+    - permission: STATUS_DELETE
+      requires: [STATUS_VIEW]
+
+  # Permissions that are mutually exclusive or have conflicts
+  conflicts:
+    # Users should not need both view all and view own for the same resource
+    # (view all implies view own)
+    - group: [USER_VIEW_ALL, USER_VIEW_OWN]
+      rule: "USER_VIEW_ALL includes USER_VIEW_OWN capabilities"
+    - group: [TICKET_VIEW_ALL, TICKET_VIEW_OWN]
+      rule: "TICKET_VIEW_ALL includes TICKET_VIEW_OWN capabilities"
