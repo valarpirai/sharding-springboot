@@ -41,7 +41,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Configuration
 @EnableConfigurationProperties(ShardingConfigProperties.class)
-@Import(CacheConfiguration.class)
+@Import({CacheConfiguration.class,
+         com.valarpirai.sharding.observability.OpenTelemetryConfiguration.class})
 @EnableAspectJAutoProxy
 public class ShardingAutoConfiguration {
 
@@ -128,8 +129,8 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public TenantIterator tenantIterator(ShardLookupService shardLookupService) {
-        return new TenantIterator(shardLookupService);
+    public TenantIterator tenantIterator(ShardLookupService shardLookupService, ConnectionRouter connectionRouter) {
+        return new TenantIterator(shardLookupService, connectionRouter);
     }
 
     /**
@@ -204,14 +205,15 @@ public class ShardingAutoConfiguration {
     }
 
     /**
-     * Repository sharding aspect for automatic sharded entity context management.
-     * This aspect automatically sets the appropriate context for repository operations
-     * based on the @ShardedEntity annotation of the entity class.
+     * Repository sharding aspect for entity-based routing.
+     * Routes repository operations based on @ShardedEntity annotation:
+     * - Sharded entities → use shard DataSource from TenantContext
+     * - Non-sharded entities → use global DataSource
      */
     @Bean
     @ConditionalOnMissingBean
     public RepositoryShardingAspect repositoryShardingAspect() {
-        logger.info("Creating RepositoryShardingAspect for automatic sharded entity context management");
+        logger.info("Creating RepositoryShardingAspect for entity-based DataSource routing");
         return new RepositoryShardingAspect();
     }
 

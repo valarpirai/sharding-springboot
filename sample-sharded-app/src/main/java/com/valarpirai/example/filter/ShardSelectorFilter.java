@@ -94,8 +94,7 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
                 DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
 
                 // Create TenantInfo with pre-resolved shard information
-                TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false);
-                tenantInfo.setShardDataSource(shardDataSource);
+                TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false, shardDataSource);
 
                 // Set complete tenant context
                 TenantContext.setTenantInfo(tenantInfo);

@@ -1,8 +1,16 @@
 package com.valarpirai.sharding.lookup;
 
 import com.valarpirai.sharding.config.ShardingConfigProperties;
+import com.valarpirai.sharding.observability.OpenTelemetryConfiguration;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.LongHistogram;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -45,6 +53,19 @@ public class ShardLookupService {
     private final DatabaseSqlProvider sqlProvider;
     private final TenantShardMappingRowMapper rowMapper = new TenantShardMappingRowMapper();
 
+    // OpenTelemetry components - optional dependencies
+    @Autowired(required = false)
+    private Tracer tracer;
+
+    @Autowired(required = false)
+    private LongCounter shardLookupCounter;
+
+    @Autowired(required = false)
+    private LongHistogram shardLookupLatency;
+
+    @Autowired(required = false)
+    private OpenTelemetryConfiguration.ShardingObservabilityUtils observabilityUtils;
+
     public ShardLookupService(JdbcTemplate globalJdbcTemplate,
                              ShardingConfigProperties shardingConfig,
                              DatabaseSqlProviderFactory sqlProviderFactory) {
@@ -61,10 +82,19 @@ public class ShardLookupService {
      * @param tenantId the tenant identifier
      * @return the tenant-shard mapping if found
      */
-    @Cacheable(value = "tenantShardMappings", key = "#tenantId", unless = "#result.isEmpty()")
+    @Cacheable(value = "tenantShardMappings", key = "#tenantId", unless = "#result != null")
+    @WithSpan("sharding.shard_lookup.find_by_tenant_id")
     public Optional<TenantShardMapping> findShardByTenantId(Long tenantId) {
+        long startTime = System.currentTimeMillis();
+
+        Span currentSpan = Span.current();
+        if (tenantId != null && currentSpan != null) {
+            currentSpan.setAllAttributes(createShardLookupAttributes(tenantId, "find_by_tenant_id"));
+        }
+
         if (tenantId == null) {
             logger.warn("Attempted to lookup shard for null tenant ID");
+            recordShardLookupMetrics(null, startTime, "invalid_input", false);
             return Optional.empty();
         }
 
@@ -76,12 +106,18 @@ public class ShardLookupService {
                     tenantId
             );
             logger.debug("Found shard mapping: {}", mapping);
+            recordShardLookupMetrics(tenantId, startTime, "success", true);
             return Optional.of(mapping);
         } catch (EmptyResultDataAccessException e) {
             logger.info("No shard mapping found for tenant: {}", tenantId);
+            recordShardLookupMetrics(tenantId, startTime, "not_found", false);
             return Optional.empty();
         } catch (Exception e) {
             logger.error("Error looking up shard for tenant {}: {}", tenantId, e.getMessage(), e);
+            recordShardLookupMetrics(tenantId, startTime, "error", false);
+            if (currentSpan != null) {
+                currentSpan.recordException(e);
+            }
             throw new ShardLookupException("Failed to lookup shard for tenant: " + tenantId, e);
         }
     }
@@ -112,6 +148,7 @@ public class ShardLookupService {
      * @param region the region
      * @return the created mapping
      */
+    @WithSpan("sharding.shard_lookup.create_mapping")
     public TenantShardMapping createMapping(Long tenantId, String shardId, String region) {
         return createMapping(tenantId, shardId, region, "ACTIVE");
     }
@@ -127,6 +164,7 @@ public class ShardLookupService {
      * @return the created mapping
      */
     @CachePut(value = "tenantShardMappings", key = "#tenantId")
+    @WithSpan("sharding.shard_lookup.create_mapping_with_status")
     public TenantShardMapping createMapping(Long tenantId, String shardId, String region, String status) {
         if (tenantId == null || shardId == null) {
             throw new IllegalArgumentException("Tenant ID and shard ID cannot be null");
@@ -199,6 +237,7 @@ public class ShardLookupService {
      *
      * @return the latest shard ID
      */
+    @WithSpan("sharding.shard_lookup.get_latest_shard_id")
     public String getLatestShardId() {
         return shardingConfig.getShards().entrySet().stream()
                 .filter(entry -> Boolean.TRUE.equals(entry.getValue().getLatest()))
@@ -303,6 +342,40 @@ public class ShardLookupService {
         }
 
         logger.info("Cache warm-up completed: loaded {}/{} tenant mappings", loaded, tenantIds.size());
+    }
+
+    /**
+     * Create attributes for shard lookup operations.
+     */
+    private Attributes createShardLookupAttributes(Long tenantId, String operationType) {
+        if (observabilityUtils == null) {
+            return Attributes.empty();
+        }
+
+        return observabilityUtils.createShardAttributes(null, tenantId, operationType);
+    }
+
+    /**
+     * Record shard lookup metrics.
+     */
+    private void recordShardLookupMetrics(Long tenantId, long startTime, String status, boolean found) {
+        if (shardLookupCounter != null) {
+            Attributes attributes = createShardLookupAttributes(tenantId, "shard_lookup")
+                .toBuilder()
+                .put(OpenTelemetryConfiguration.OPERATION_TYPE, status)
+                .put(OpenTelemetryConfiguration.CACHE_HIT, found)
+                .build();
+            shardLookupCounter.add(1, attributes);
+        }
+
+        if (shardLookupLatency != null) {
+            long duration = System.currentTimeMillis() - startTime;
+            Attributes attributes = createShardLookupAttributes(tenantId, "lookup_latency")
+                .toBuilder()
+                .put(OpenTelemetryConfiguration.OPERATION_TYPE, status)
+                .build();
+            shardLookupLatency.record(duration, attributes);
+        }
     }
 
     /**

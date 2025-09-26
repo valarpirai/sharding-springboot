@@ -1,8 +1,10 @@
 package com.valarpirai.sharding.iterator;
 
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.lookup.ShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
+import com.valarpirai.sharding.routing.ConnectionRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -28,9 +30,11 @@ public class TenantIterator {
     private static final int DEFAULT_BATCH_SIZE = 10;
 
     private final ShardLookupService shardLookupService;
+    private final ConnectionRouter connectionRouter;
 
-    public TenantIterator(ShardLookupService shardLookupService) {
+    public TenantIterator(ShardLookupService shardLookupService, ConnectionRouter connectionRouter) {
         this.shardLookupService = shardLookupService;
+        this.connectionRouter = connectionRouter;
     }
 
     /**
@@ -275,16 +279,23 @@ public class TenantIterator {
      * Process a tenant within its proper tenant context.
      */
     private void processTenantInContext(TenantShardMapping mapping, Consumer<Long> processor) {
-        TenantContext.executeInTenantContext(mapping.getTenantId(), () -> {
-            try {
-                // Set shard information in context
-                TenantContext.setTenantInfo(mapping.getTenantId(), mapping.getShardId());
+        try {
+            // Create TenantInfo with pre-resolved shard DataSource
+            String shardId = mapping.getShardId();
+            javax.sql.DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
+
+            TenantInfo tenantInfo = new TenantInfo(mapping.getTenantId(), shardId, false, shardDataSource);
+            logger.trace("Set tenant context for batch processing - tenant: {}, shard: {}",
+                       mapping.getTenantId(), shardId);
+
+            // Execute with complete tenant context
+            TenantContext.executeInTenantContext(tenantInfo, () -> {
                 processor.accept(mapping.getTenantId());
-            } catch (Exception e) {
-                logger.error("Error processing tenant {}: {}", mapping.getTenantId(), e.getMessage(), e);
-                throw new TenantIteratorException("Failed to process tenant: " + mapping.getTenantId(), e);
-            }
-        });
+            });
+        } catch (Exception e) {
+            logger.error("Error processing tenant {}: {}", mapping.getTenantId(), e.getMessage(), e);
+            throw new TenantIteratorException("Failed to process tenant: " + mapping.getTenantId(), e);
+        }
     }
 
     /**

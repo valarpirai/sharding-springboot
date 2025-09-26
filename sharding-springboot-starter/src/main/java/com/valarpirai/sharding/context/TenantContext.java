@@ -15,21 +15,16 @@ public class TenantContext {
 
     /**
      * Set the tenant information for the current thread.
+     * @deprecated Use setTenantInfo(TenantInfo) with complete shard information instead.
+     * This method creates incomplete TenantInfo without shard DataSource, causing performance issues.
      *
      * @param tenantId the tenant identifier
      */
+    @Deprecated
     public static void setTenantId(Long tenantId) {
-        setTenantInfo(new TenantInfo(tenantId, null, false));
-    }
-
-    /**
-     * Set the tenant information with shard details for the current thread.
-     *
-     * @param tenantId the tenant identifier
-     * @param shardId the shard identifier
-     */
-    public static void setTenantInfo(Long tenantId, String shardId) {
-        setTenantInfo(new TenantInfo(tenantId, shardId, false));
+        throw new UnsupportedOperationException(
+            "setTenantId(Long) is deprecated. Use setTenantInfo(TenantInfo) with pre-resolved shard DataSource. " +
+            "TenantInfo should never be created without shard DataSource for performance reasons.");
     }
 
     /**
@@ -60,7 +55,7 @@ public class TenantContext {
      */
     public static Long getCurrentTenantId() {
         TenantInfo info = tenantContext.get();
-        return info != null ? info.getTenantId() : null;
+        return info != null ? info.tenantId() : null;
     }
 
     /**
@@ -70,7 +65,7 @@ public class TenantContext {
      */
     public static String getCurrentShardId() {
         TenantInfo info = tenantContext.get();
-        return info != null ? info.getShardId() : null;
+        return info != null ? info.shardId() : null;
     }
 
     /**
@@ -89,7 +84,7 @@ public class TenantContext {
      */
     public static boolean isReadOnlyMode() {
         TenantInfo info = tenantContext.get();
-        return info != null && info.isReadOnlyMode();
+        return info != null && info.readOnlyMode();
     }
 
     /**
@@ -100,8 +95,9 @@ public class TenantContext {
     public static void setReadOnlyMode(boolean readOnlyMode) {
         TenantInfo info = tenantContext.get();
         if (info != null) {
-            info.setReadOnlyMode(readOnlyMode);
-            logger.debug("Set read-only mode to {} for tenant {}", readOnlyMode, info.getTenantId());
+            TenantInfo updatedInfo = info.withReadOnlyMode(readOnlyMode);
+            tenantContext.set(updatedInfo);
+            logger.debug("Set read-only mode to {} for tenant {}", readOnlyMode, info.tenantId());
         } else {
             logger.warn("Cannot set read-only mode: no tenant context available");
         }
@@ -120,16 +116,33 @@ public class TenantContext {
 
     /**
      * Execute a function within a specific tenant context.
+     * @deprecated Use executeInTenantContext with complete TenantInfo instead.
+     * This method cannot create proper TenantInfo with shard DataSource.
      *
      * @param tenantId the tenant ID to set
      * @param function the function to execute
      * @param <T> the return type
      * @return the result of the function
      */
+    @Deprecated
     public static <T> T executeInTenantContext(Long tenantId, java.util.function.Supplier<T> function) {
+        throw new UnsupportedOperationException(
+            "executeInTenantContext(Long, Supplier) is deprecated. " +
+            "Services should resolve complete TenantInfo with shard DataSource before context switching.");
+    }
+
+    /**
+     * Execute a function within a specific tenant context.
+     *
+     * @param tenantInfo the complete tenant information
+     * @param function the function to execute
+     * @param <T> the return type
+     * @return the result of the function
+     */
+    public static <T> T executeInTenantContext(TenantInfo tenantInfo, java.util.function.Supplier<T> function) {
         TenantInfo previousContext = getTenantInfo();
         try {
-            setTenantId(tenantId);
+            setTenantInfo(tenantInfo);
             return function.get();
         } finally {
             if (previousContext != null) {
@@ -143,22 +156,13 @@ public class TenantContext {
     /**
      * Execute a runnable within a specific tenant context.
      *
-     * @param tenantId the tenant ID to set
+     * @param tenantInfo the complete tenant information
      * @param runnable the runnable to execute
      */
-    public static void executeInTenantContext(Long tenantId, Runnable runnable) {
-        executeInTenantContext(tenantId, () -> {
+    public static void executeInTenantContext(TenantInfo tenantInfo, Runnable runnable) {
+        executeInTenantContext(tenantInfo, () -> {
             runnable.run();
             return null;
         });
-    }
-
-    /**
-     * Check if tenant context is set for the current thread.
-     *
-     * @return true if tenant context is available
-     */
-    public static boolean isContextSet() {
-        return tenantContext.get() != null;
     }
 }

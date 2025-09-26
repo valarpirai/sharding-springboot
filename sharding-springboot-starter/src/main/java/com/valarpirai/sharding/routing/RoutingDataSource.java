@@ -1,10 +1,20 @@
 package com.valarpirai.sharding.routing;
 
 import com.valarpirai.sharding.annotation.ShardedEntity;
+import com.valarpirai.sharding.aspect.RepositoryShardingAspect;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
+import com.valarpirai.sharding.observability.OpenTelemetryConfiguration;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.LongHistogram;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.datasource.AbstractDataSource;
 
 import javax.sql.DataSource;
@@ -20,62 +30,86 @@ public class RoutingDataSource extends AbstractDataSource {
     private static final Logger logger = LoggerFactory.getLogger(RoutingDataSource.class);
 
     private final ConnectionRouter connectionRouter;
-    private final ThreadLocal<Boolean> shardedEntityContext = new ThreadLocal<>();
+
+    // RepositoryShardingAspect - optional dependency for entity-based routing
+    @Autowired(required = false)
+    private RepositoryShardingAspect repositoryShardingAspect;
+
+    // OpenTelemetry components - optional dependencies
+    @Autowired(required = false)
+    private Tracer tracer;
+
+    @Autowired(required = false)
+    private LongCounter connectionCounter;
+
+    @Autowired(required = false)
+    private LongHistogram connectionAcquisitionLatency;
+
+    @Autowired(required = false)
+    private OpenTelemetryConfiguration.ShardingObservabilityUtils observabilityUtils;
 
     public RoutingDataSource(ConnectionRouter connectionRouter) {
         this.connectionRouter = connectionRouter;
     }
 
     @Override
+    @WithSpan("sharding.datasource.get_connection")
     public Connection getConnection() throws SQLException {
-        DataSource targetDataSource = determineTargetDataSource();
-        Connection connection = targetDataSource.getConnection();
+        long startTime = System.currentTimeMillis();
+        TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-        logger.debug("Obtained connection from target DataSource for tenant: {}",
-                    TenantContext.getCurrentTenantId());
+        Span currentSpan = Span.current();
+        if (tenantInfo != null && currentSpan != null) {
+            currentSpan.setAllAttributes(createConnectionAttributes(tenantInfo, "get_connection"));
+        }
 
-        return connection;
+        try {
+            DataSource targetDataSource = determineTargetDataSource();
+            Connection connection = targetDataSource.getConnection();
+
+            // Record metrics
+            recordConnectionMetrics(tenantInfo, startTime, "success");
+
+            logger.debug("Obtained connection from target DataSource for tenant: {}",
+                        TenantContext.getCurrentTenantId());
+
+            return connection;
+        } catch (SQLException e) {
+            recordConnectionMetrics(tenantInfo, startTime, "error");
+            currentSpan.recordException(e);
+            throw e;
+        }
     }
 
     @Override
+    @WithSpan("sharding.datasource.get_connection_with_credentials")
     public Connection getConnection(String username, String password) throws SQLException {
-        DataSource targetDataSource = determineTargetDataSource();
-        Connection connection = targetDataSource.getConnection(username, password);
+        long startTime = System.currentTimeMillis();
+        TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-        logger.debug("Obtained connection with credentials from target DataSource for tenant: {}",
-                    TenantContext.getCurrentTenantId());
+        Span currentSpan = Span.current();
+        if (tenantInfo != null && currentSpan != null) {
+            currentSpan.setAllAttributes(createConnectionAttributes(tenantInfo, "get_connection_with_credentials"));
+        }
 
-        return connection;
+        try {
+            DataSource targetDataSource = determineTargetDataSource();
+            Connection connection = targetDataSource.getConnection(username, password);
+
+            // Record metrics
+            recordConnectionMetrics(tenantInfo, startTime, "success");
+
+            logger.debug("Obtained connection with credentials from target DataSource for tenant: {}",
+                        TenantContext.getCurrentTenantId());
+
+            return connection;
+        } catch (SQLException e) {
+            recordConnectionMetrics(tenantInfo, startTime, "error");
+            currentSpan.recordException(e);
+            throw e;
+        }
     }
 
-    /**
-     * Set context for sharded entity operations.
-     * This method should be called before database operations on sharded entities.
-     *
-     * @param forShardedEntity true if the operation is for a sharded entity
-     */
-    public void setShardedEntityContext(boolean forShardedEntity) {
-        shardedEntityContext.set(forShardedEntity);
-        logger.trace("Set sharded entity context: {}", forShardedEntity);
-    }
-
-    /**
-     * Clear the sharded entity context.
-     */
-    public void clearShardedEntityContext() {
-        shardedEntityContext.remove();
-        logger.trace("Cleared sharded entity context");
-    }
-
-    /**
-     * Check if current operation is for a sharded entity.
-     *
-     * @return true if operation is for sharded entity
-     */
-    public boolean isShardedEntityContext() {
-        Boolean context = shardedEntityContext.get();
-        return context != null ? context : false;
-    }
 
     /**
      * Determine the target DataSource based on current context.
@@ -85,38 +119,45 @@ public class RoutingDataSource extends AbstractDataSource {
      * @return the appropriate DataSource
      * @throws SQLException if routing fails
      */
+    @WithSpan("sharding.datasource.determine_target")
     protected DataSource determineTargetDataSource() throws SQLException {
         try {
-            boolean forShardedEntity = isShardedEntityContext();
+            // Check if RepositoryShardingAspect is forcing global DataSource
+            boolean forceGlobal = repositoryShardingAspect != null &&
+                                repositoryShardingAspect.shouldUseGlobalDataSource();
 
-            // Check if we have pre-resolved shard information
+            if (forceGlobal) {
+                logger.debug("Using global DataSource (forced by RepositoryShardingAspect)");
+                return connectionRouter.routeDataSource(false);
+            }
+
+            // Check if we have pre-resolved shard information in TenantContext
             TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
             if (logger.isDebugEnabled()) {
                 Long tenantId = TenantContext.getCurrentTenantId();
                 boolean readOnly = TenantContext.isReadOnlyMode();
-                String shardId = tenantInfo != null ? tenantInfo.getShardId() : "none";
-                boolean hasPreResolvedShard = tenantInfo != null && tenantInfo.getShardDataSource() != null;
-                logger.debug("Routing connection - tenant: {}, sharded: {}, readOnly: {}, shard: {}, preResolved: {}",
-                           tenantId, forShardedEntity, readOnly, shardId, hasPreResolvedShard);
+                String shardId = tenantInfo != null ? tenantInfo.shardId() : "none";
+                boolean hasPreResolvedShard = tenantInfo != null && tenantInfo.shardDataSource() != null;
+                logger.debug("Routing connection - tenant: {}, readOnly: {}, shard: {}, preResolved: {}, forceGlobal: {}",
+                           tenantId, readOnly, shardId, hasPreResolvedShard, forceGlobal);
             }
 
             // Use pre-resolved shard information if available
-            if (tenantInfo != null && tenantInfo.getShardDataSource() != null) {
-                if (forShardedEntity) {
-                    // For sharded entities, use the pre-resolved shard DataSource
-                    logger.debug("Using pre-resolved shard DataSource for sharded entity");
-                    return tenantInfo.getShardDataSource();
-                } else {
-                    // For non-sharded entities, always use global database
-                    logger.debug("Using global DataSource for non-sharded entity");
-                    return connectionRouter.routeDataSource(false);
-                }
+            if (tenantInfo != null && tenantInfo.shardDataSource() != null) {
+                logger.debug("Using pre-resolved shard DataSource from TenantInfo");
+                return tenantInfo.shardDataSource();
             }
 
-            // Fallback to dynamic routing via ConnectionRouter
+            // If no tenant context or no pre-resolved shard, use global database
+            if (tenantInfo == null) {
+                logger.debug("No tenant context - using global DataSource");
+                return connectionRouter.routeDataSource(false);
+            }
+
+            // Fallback to dynamic routing via ConnectionRouter (should rarely happen)
             logger.debug("Using ConnectionRouter for dynamic DataSource resolution");
-            return connectionRouter.routeDataSource(forShardedEntity);
+            return connectionRouter.routeDataSource(true);
 
         } catch (RoutingException e) {
             logger.error("Failed to route connection: {}", e.getMessage());
@@ -128,30 +169,20 @@ public class RoutingDataSource extends AbstractDataSource {
     }
 
     /**
-     * Execute an operation with explicit sharded entity context.
+     * Execute an operation with explicit tenant context.
+     * The shard DataSource is determined by the TenantInfo set in the context.
      *
-     * @param forShardedEntity whether this is for a sharded entity
      * @param operation the operation to execute
      * @param <T> the return type
      * @return the operation result
      * @throws SQLException if the operation fails
      */
-    public <T> T executeWithContext(boolean forShardedEntity, SqlOperation<T> operation) throws SQLException {
-        boolean previousContext = isShardedEntityContext();
-        try {
-            setShardedEntityContext(forShardedEntity);
-            return operation.execute(this);
-        } finally {
-            if (previousContext) {
-                setShardedEntityContext(previousContext);
-            } else {
-                clearShardedEntityContext();
-            }
-        }
+    public <T> T executeWithContext(SqlOperation<T> operation) throws SQLException {
+        return operation.execute(this);
     }
 
     /**
-     * Execute an operation for a sharded entity with tenant context.
+     * Execute an operation for a tenant context with pre-resolved shard.
      *
      * @param tenantId the tenant identifier
      * @param operation the operation to execute
@@ -162,7 +193,7 @@ public class RoutingDataSource extends AbstractDataSource {
     public <T> T executeForTenant(Long tenantId, SqlOperation<T> operation) throws SQLException {
         return TenantContext.executeInTenantContext(tenantId, () -> {
             try {
-                return executeWithContext(true, operation);
+                return executeWithContext(operation);
             } catch (SQLException e) {
                 throw new RuntimeException("SQL operation failed for tenant: " + tenantId, e);
             }
@@ -195,6 +226,43 @@ public class RoutingDataSource extends AbstractDataSource {
      */
     public ConnectionRouter getConnectionRouter() {
         return connectionRouter;
+    }
+
+    /**
+     * Create attributes for connection operations.
+     */
+    private Attributes createConnectionAttributes(TenantInfo tenantInfo, String operationType) {
+        if (observabilityUtils == null) {
+            return Attributes.empty();
+        }
+
+        String shardId = tenantInfo != null ? tenantInfo.shardId() : null;
+        boolean hasShardDataSource = tenantInfo != null && tenantInfo.shardDataSource() != null;
+        String dataSourceType = hasShardDataSource ? "shard" : "global";
+
+        return observabilityUtils.createDataSourceAttributes(shardId, dataSourceType, operationType);
+    }
+
+    /**
+     * Record connection metrics.
+     */
+    private void recordConnectionMetrics(TenantInfo tenantInfo, long startTime, String status) {
+        if (connectionCounter != null) {
+            Attributes attributes = createConnectionAttributes(tenantInfo, "connection")
+                .toBuilder()
+                .put(OpenTelemetryConfiguration.OPERATION_TYPE, status)
+                .build();
+            connectionCounter.add(1, attributes);
+        }
+
+        if (connectionAcquisitionLatency != null) {
+            long duration = System.currentTimeMillis() - startTime;
+            Attributes attributes = createConnectionAttributes(tenantInfo, "acquisition_latency")
+                .toBuilder()
+                .put(OpenTelemetryConfiguration.OPERATION_TYPE, status)
+                .build();
+            connectionAcquisitionLatency.record(duration, attributes);
+        }
     }
 
     /**

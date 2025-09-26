@@ -120,6 +120,38 @@
             <artifactId>spring-tx</artifactId>
         </dependency>
 
+        <!-- OpenTelemetry for observability and distributed tracing -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>1.32.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-context</artifactId>
+            <version>1.32.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-semconv</artifactId>
+            <version>1.21.0-alpha</version>
+        </dependency>
+
+        <!-- OpenTelemetry instrumentation for Spring Boot -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-spring-boot-starter</artifactId>
+            <version>1.32.0-alpha</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- OpenTelemetry annotations for @WithSpan -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-instrumentation-annotations</artifactId>
+            <version>1.32.0</version>
+        </dependency>
+
         <!-- Optional dependencies for database drivers -->
         <dependency>
             <groupId>org.postgresql</groupId>

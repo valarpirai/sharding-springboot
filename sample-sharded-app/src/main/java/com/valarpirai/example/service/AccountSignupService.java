@@ -10,8 +10,10 @@ import com.valarpirai.example.repository.RoleRepository;
 import com.valarpirai.example.repository.UserRepository;
 import com.valarpirai.example.security.PermissionMasks;
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.lookup.ShardLookupService;
 import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.routing.ConnectionRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,6 +35,7 @@ public class AccountSignupService {
     private final ShardUtils shardUtils;
     private final PasswordEncoder passwordEncoder;
     private final AccountDemoSetupService demoSetupService;
+    private final ConnectionRouter connectionRouter;
 
     public AccountSignupService(AccountRepository accountRepository,
                               RoleRepository roleRepository,
@@ -40,7 +43,8 @@ public class AccountSignupService {
                               ShardLookupService shardLookupService,
                               ShardUtils shardUtils,
                               PasswordEncoder passwordEncoder,
-                              AccountDemoSetupService demoSetupService) {
+                              AccountDemoSetupService demoSetupService,
+                              ConnectionRouter connectionRouter) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
@@ -48,6 +52,7 @@ public class AccountSignupService {
         this.shardUtils = shardUtils;
         this.passwordEncoder = passwordEncoder;
         this.demoSetupService = demoSetupService;
+        this.connectionRouter = connectionRouter;
     }
 
     /**
@@ -73,8 +78,11 @@ public class AccountSignupService {
         shardLookupService.createMapping(account.getId(), latestShardId, "us-east-1");
         logger.info("Mapped account {} to latest shard: {}", account.getId(), latestShardId);
 
-        // 3. Set tenant context for subsequent operations
-        TenantContext.setTenantId(account.getId());
+        // 3. Set complete tenant context with pre-resolved shard for subsequent operations
+        javax.sql.DataSource shardDataSource = connectionRouter.getShardDataSource(latestShardId, false);
+        TenantInfo tenantInfo = new TenantInfo(account.getId(), latestShardId, false, shardDataSource);
+        TenantContext.setTenantInfo(tenantInfo);
+        logger.debug("Set signup context - tenant: {}, shard: {}", account.getId(), latestShardId);
 
         try {
             // 4. Create ADMIN role first (needed for admin user)

@@ -276,8 +276,7 @@ public class AccountDemoSetupService {
             javax.sql.DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
 
             // Create TenantInfo with complete shard context
-            TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false);
-            tenantInfo.setShardDataSource(shardDataSource);
+            TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false, shardDataSource);
 
             // Set tenant context with shard information
             TenantContext.setTenantInfo(tenantInfo);

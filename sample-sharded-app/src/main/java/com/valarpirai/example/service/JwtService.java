@@ -65,14 +65,17 @@ public class JwtService {
             Long userId = claims.get("userId", Long.class);
             Long accountId = claims.get("accountId", Long.class);
 
-            TenantContext.setTenantId(accountId);
-
-            try {
-                return userRepository.findByIdAndAccountIdAndDeletedFalse(userId, accountId)
-                        .orElseThrow(() -> new IllegalArgumentException("User not found or inactive"));
-            } finally {
-                TenantContext.clear();
+            // Tenant context should already be set by ShardSelectorFilter based on account-id header
+            // If not set, this indicates a configuration or authentication flow issue
+            Long currentTenantId = TenantContext.getCurrentTenantId();
+            if (currentTenantId == null || !currentTenantId.equals(accountId)) {
+                throw new IllegalStateException(
+                    "JWT token account ID (" + accountId + ") doesn't match current tenant context (" +
+                    currentTenantId + "). Ensure account-id header matches JWT token.");
             }
+
+            return userRepository.findByIdAndAccountIdAndDeletedFalse(userId, accountId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found or inactive"));
 
         } catch (Exception e) {
             logger.warn("Token validation failed: {}", e.getMessage());

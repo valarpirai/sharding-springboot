@@ -26,7 +26,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request, Long accountId) {
-        TenantContext.setTenantId(accountId);
+        // Tenant context is already set by ShardSelectorFilter with complete shard info
 
         try {
             User user = userRepository.findByEmailAndAccountIdAndDeletedFalse(request.getEmail(), accountId)

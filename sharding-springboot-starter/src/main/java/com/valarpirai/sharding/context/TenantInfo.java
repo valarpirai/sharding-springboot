@@ -1,39 +1,58 @@
 package com.valarpirai.sharding.context;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import javax.sql.DataSource;
 
 /**
  * Tenant information holder with pre-resolved shard information.
- * This class stores complete shard context resolved upfront in the filter layer
+ * This record stores complete shard context resolved upfront in the filter layer
  * to avoid dynamic shard lookups during query execution.
+ *
+ * @param tenantId the tenant identifier
+ * @param shardId the shard identifier where tenant data resides
+ * @param readOnlyMode whether operations should be read-only
+ * @param shardDataSource pre-resolved DataSource for the tenant's shard
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class TenantInfo {
-
-    private Long tenantId;
-    private String shardId;
-    private boolean readOnlyMode;
+public record TenantInfo(
+    Long tenantId,
+    String shardId,
+    boolean readOnlyMode,
+    DataSource shardDataSource
+) {
 
     /**
-     * Pre-resolved DataSource for the tenant's shard.
-     * This allows RoutingDataSource to directly use the resolved DataSource
-     * without performing additional lookups during query execution.
+     * Constructor that enforces shard DataSource requirement.
+     * This prevents creation of incomplete TenantInfo without shard DataSource.
      */
-    private DataSource shardDataSource;
+    public TenantInfo {
+        if (tenantId == null) {
+            throw new IllegalArgumentException("Tenant ID cannot be null");
+        }
+        if (shardId == null) {
+            throw new IllegalArgumentException("Shard ID cannot be null - TenantInfo must be created with complete shard information");
+        }
+        if (shardDataSource == null) {
+            throw new IllegalArgumentException("Shard DataSource cannot be null - TenantInfo must be created with pre-resolved DataSource");
+        }
+    }
 
-    // Legacy constructor for backward compatibility
-    public TenantInfo(Long tenantId, String shardId, boolean readOnlyMode) {
-        this.tenantId = tenantId;
-        this.shardId = shardId;
-        this.readOnlyMode = readOnlyMode;
-        this.shardDataSource = null; // Not pre-resolved
+    /**
+     * Create TenantInfo for read-write operations.
+     */
+    public static TenantInfo create(Long tenantId, String shardId, DataSource shardDataSource) {
+        return new TenantInfo(tenantId, shardId, false, shardDataSource);
+    }
+
+    /**
+     * Create TenantInfo for read-only operations.
+     */
+    public static TenantInfo createReadOnly(Long tenantId, String shardId, DataSource shardDataSource) {
+        return new TenantInfo(tenantId, shardId, true, shardDataSource);
+    }
+
+    /**
+     * Create a copy of this TenantInfo with read-only mode toggled.
+     */
+    public TenantInfo withReadOnlyMode(boolean readOnlyMode) {
+        return new TenantInfo(tenantId, shardId, readOnlyMode, shardDataSource);
     }
 }

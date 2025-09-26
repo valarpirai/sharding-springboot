@@ -2,16 +2,21 @@ package com.valarpirai.sharding.transaction;
 
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
+import com.valarpirai.sharding.observability.OpenTelemetryConfiguration;
 import com.valarpirai.sharding.routing.ConnectionRouter;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.AbstractPlatformTransactionManager;
-import org.springframework.transaction.support.DefaultTransactionStatus;
 
 import javax.sql.DataSource;
 import java.util.Map;
@@ -23,8 +28,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * This manager creates and caches DataSourceTransactionManager instances for each
  * DataSource (global and shards) and routes transactions appropriately.
+ *
+ * Uses delegation pattern instead of inheritance to avoid protected method access issues.
  */
-public class RoutingTransactionManager extends AbstractPlatformTransactionManager {
+public class RoutingTransactionManager implements PlatformTransactionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(RoutingTransactionManager.class);
 
@@ -35,9 +42,15 @@ public class RoutingTransactionManager extends AbstractPlatformTransactionManage
     private final Map<DataSource, PlatformTransactionManager> transactionManagers =
             new ConcurrentHashMap<>();
 
-    // ThreadLocal to track which transaction manager is being used for current transaction
-    private final ThreadLocal<PlatformTransactionManager> currentTransactionManager =
-            new ThreadLocal<>();
+    // OpenTelemetry components - optional dependencies
+    @Autowired(required = false)
+    private Tracer tracer;
+
+    @Autowired(required = false)
+    private LongCounter transactionCounter;
+
+    @Autowired(required = false)
+    private OpenTelemetryConfiguration.ShardingObservabilityUtils observabilityUtils;
 
     public RoutingTransactionManager(ConnectionRouter connectionRouter, DataSource globalDataSource) {
         this.connectionRouter = connectionRouter;
@@ -48,74 +61,80 @@ public class RoutingTransactionManager extends AbstractPlatformTransactionManage
     }
 
     @Override
-    protected Object doGetTransaction() throws TransactionException {
-        PlatformTransactionManager targetTxManager = determineTargetTransactionManager();
-        currentTransactionManager.set(targetTxManager);
+    @WithSpan("sharding.transaction.get_transaction")
+    public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
+        TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-        if (targetTxManager instanceof AbstractPlatformTransactionManager) {
-            return ((AbstractPlatformTransactionManager) targetTxManager).doGetTransaction();
+        Span currentSpan = Span.current();
+        if (tenantInfo != null && currentSpan != null) {
+            currentSpan.setAllAttributes(createTransactionAttributes(tenantInfo, "get_transaction"));
         }
 
-        // For non-AbstractPlatformTransactionManager implementations
-        return new Object();
+        try {
+            PlatformTransactionManager targetTxManager = determineTargetTransactionManager();
+            logger.debug("Routing transaction to: {}", targetTxManager.getClass().getSimpleName());
+
+            TransactionStatus status = targetTxManager.getTransaction(definition);
+
+            // Record metrics
+            recordTransactionMetrics(tenantInfo, "begin", "success");
+
+            return status;
+        } catch (TransactionException e) {
+            recordTransactionMetrics(tenantInfo, "begin", "error");
+            currentSpan.recordException(e);
+            throw e;
+        }
     }
 
     @Override
-    protected void doBegin(Object transaction, TransactionDefinition definition) throws TransactionException {
-        PlatformTransactionManager targetTxManager = currentTransactionManager.get();
+    @WithSpan("sharding.transaction.commit")
+    public void commit(TransactionStatus status) throws TransactionException {
+        TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-        if (targetTxManager instanceof AbstractPlatformTransactionManager) {
-            ((AbstractPlatformTransactionManager) targetTxManager).doBegin(transaction, definition);
-        } else {
-            // This shouldn't happen with DataSourceTransactionManager, but handle gracefully
-            logger.warn("Cannot begin transaction on non-AbstractPlatformTransactionManager: {}",
-                       targetTxManager.getClass().getSimpleName());
+        Span currentSpan = Span.current();
+        if (tenantInfo != null && currentSpan != null) {
+            currentSpan.setAllAttributes(createTransactionAttributes(tenantInfo, "commit"));
         }
-    }
 
-    @Override
-    protected void doCommit(DefaultTransactionStatus status) throws TransactionException {
-        PlatformTransactionManager targetTxManager = currentTransactionManager.get();
-
-        if (targetTxManager instanceof AbstractPlatformTransactionManager) {
-            ((AbstractPlatformTransactionManager) targetTxManager).doCommit(status);
-        } else {
+        try {
+            // The transaction status should contain the reference to the correct transaction manager
+            // Since we're delegating, the status is from the target transaction manager
+            PlatformTransactionManager targetTxManager = determineTargetTransactionManager();
             targetTxManager.commit(status);
+
+            // Record metrics
+            recordTransactionMetrics(tenantInfo, "commit", "success");
+        } catch (TransactionException e) {
+            recordTransactionMetrics(tenantInfo, "commit", "error");
+            currentSpan.recordException(e);
+            throw e;
         }
     }
 
     @Override
-    protected void doRollback(DefaultTransactionStatus status) throws TransactionException {
-        PlatformTransactionManager targetTxManager = currentTransactionManager.get();
+    @WithSpan("sharding.transaction.rollback")
+    public void rollback(TransactionStatus status) throws TransactionException {
+        TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-        if (targetTxManager instanceof AbstractPlatformTransactionManager) {
-            ((AbstractPlatformTransactionManager) targetTxManager).doRollback(status);
-        } else {
+        Span currentSpan = Span.current();
+        if (tenantInfo != null && currentSpan != null) {
+            currentSpan.setAllAttributes(createTransactionAttributes(tenantInfo, "rollback"));
+        }
+
+        try {
+            // The transaction status should contain the reference to the correct transaction manager
+            // Since we're delegating, the status is from the target transaction manager
+            PlatformTransactionManager targetTxManager = determineTargetTransactionManager();
             targetTxManager.rollback(status);
+
+            // Record metrics
+            recordTransactionMetrics(tenantInfo, "rollback", "success");
+        } catch (TransactionException e) {
+            recordTransactionMetrics(tenantInfo, "rollback", "error");
+            currentSpan.recordException(e);
+            throw e;
         }
-    }
-
-    @Override
-    protected void doCleanupAfterCompletion(Object transaction) {
-        PlatformTransactionManager targetTxManager = currentTransactionManager.get();
-
-        if (targetTxManager instanceof AbstractPlatformTransactionManager) {
-            ((AbstractPlatformTransactionManager) targetTxManager).doCleanupAfterCompletion(transaction);
-        }
-
-        // Clear the current transaction manager reference
-        currentTransactionManager.remove();
-    }
-
-    @Override
-    protected boolean isExistingTransaction(Object transaction) throws TransactionException {
-        PlatformTransactionManager targetTxManager = currentTransactionManager.get();
-
-        if (targetTxManager instanceof AbstractPlatformTransactionManager) {
-            return ((AbstractPlatformTransactionManager) targetTxManager).isExistingTransaction(transaction);
-        }
-
-        return false;
     }
 
     /**
@@ -127,23 +146,23 @@ public class RoutingTransactionManager extends AbstractPlatformTransactionManage
             // Check if we have pre-resolved shard information
             TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-            if (tenantInfo != null && tenantInfo.getShardDataSource() != null) {
+            if (tenantInfo != null && tenantInfo.shardDataSource() != null) {
                 // Use pre-resolved shard DataSource
-                DataSource shardDataSource = tenantInfo.getShardDataSource();
+                DataSource shardDataSource = tenantInfo.shardDataSource();
                 logger.debug("Using pre-resolved shard transaction manager for tenant: {}, shard: {}",
-                           tenantInfo.getTenantId(), tenantInfo.getShardId());
+                           tenantInfo.tenantId(), tenantInfo.shardId());
                 return getOrCreateTransactionManager(shardDataSource);
             }
 
             // Fallback: try to determine shard dynamically
             // This will typically use the global DataSource unless tenant context suggests otherwise
-            if (tenantInfo != null && tenantInfo.getTenantId() != null) {
+            if (tenantInfo != null && tenantInfo.tenantId() != null) {
                 try {
                     // Try to get shard DataSource from connection router
                     DataSource shardDataSource = connectionRouter.getShardDataSource(
-                        tenantInfo.getShardId(), tenantInfo.isReadOnlyMode());
+                        tenantInfo.shardId(), tenantInfo.readOnlyMode());
                     logger.debug("Using dynamically resolved shard transaction manager for tenant: {}",
-                               tenantInfo.getTenantId());
+                               tenantInfo.tenantId());
                     return getOrCreateTransactionManager(shardDataSource);
                 } catch (Exception e) {
                     logger.debug("Could not resolve shard DataSource dynamically, using global: {}",
@@ -173,13 +192,13 @@ public class RoutingTransactionManager extends AbstractPlatformTransactionManage
 
             DataSourceTransactionManager txManager = new DataSourceTransactionManager(ds);
 
-            // Copy transaction manager configuration from this manager
-            txManager.setDefaultTimeout(getDefaultTimeout());
-            txManager.setNestedTransactionAllowed(isNestedTransactionAllowed());
-            txManager.setValidateExistingTransaction(isValidateExistingTransaction());
-            txManager.setGlobalRollbackOnParticipationFailure(isGlobalRollbackOnParticipationFailure());
-            txManager.setFailEarlyOnGlobalRollbackOnly(isFailEarlyOnGlobalRollbackOnly());
-            txManager.setRollbackOnCommitFailure(isRollbackOnCommitFailure());
+            // Configure transaction manager with sensible defaults
+            txManager.setDefaultTimeout(-1); // No timeout by default
+            txManager.setNestedTransactionAllowed(true);
+            txManager.setValidateExistingTransaction(false);
+            txManager.setGlobalRollbackOnParticipationFailure(true);
+            txManager.setFailEarlyOnGlobalRollbackOnly(false);
+            txManager.setRollbackOnCommitFailure(false);
 
             return txManager;
         });
@@ -198,5 +217,32 @@ public class RoutingTransactionManager extends AbstractPlatformTransactionManage
     public void clearTransactionManagerCache() {
         transactionManagers.clear();
         logger.info("Cleared transaction manager cache");
+    }
+
+    /**
+     * Create attributes for transaction operations.
+     */
+    private Attributes createTransactionAttributes(TenantInfo tenantInfo, String operationType) {
+        if (observabilityUtils == null) {
+            return Attributes.empty();
+        }
+
+        String shardId = tenantInfo != null ? tenantInfo.shardId() : null;
+        Long tenantId = tenantInfo != null ? tenantInfo.tenantId() : null;
+
+        return observabilityUtils.createTransactionAttributes(shardId, tenantId, operationType);
+    }
+
+    /**
+     * Record transaction metrics.
+     */
+    private void recordTransactionMetrics(TenantInfo tenantInfo, String transactionType, String status) {
+        if (transactionCounter != null) {
+            Attributes attributes = createTransactionAttributes(tenantInfo, transactionType)
+                .toBuilder()
+                .put(OpenTelemetryConfiguration.OPERATION_TYPE, status)
+                .build();
+            transactionCounter.add(1, attributes);
+        }
     }
 }
