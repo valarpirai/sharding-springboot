@@ -19,8 +19,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -35,17 +33,6 @@ import java.util.Optional;
 public class ShardSelectorFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardSelectorFilter.class);
-
-    private static final String ACCOUNT_ID_HEADER = "account-id";
-    private static final String CONTENT_TYPE_JSON = "application/json";
-
-    // Paths that don't require shard resolution
-    private static final List<String> EXCLUDED_PATHS = Arrays.asList(
-        "/api/signup",           // Account signup doesn't require existing tenant
-        "/swagger-ui",           // Swagger UI
-        "/v3/api-docs",          // OpenAPI docs
-        "/actuator"              // Health checks and monitoring
-    );
 
     private final ShardLookupService shardLookupService;
     private final AccountValidationService accountValidationService;
@@ -63,47 +50,32 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                    FilterChain filterChain) throws ServletException, IOException {
 
-        String requestPath = request.getRequestURI();
-        String method = request.getMethod();
-
-        logger.debug("Processing shard selection for request: {} {}", method, requestPath);
+        String requestDescription = TenantFilterUtils.getRequestDescription(request);
+        logger.debug("Processing shard selection for request: {}", requestDescription);
 
         try {
             // Skip shard resolution for excluded paths
             if (shouldNotFilter(request)) {
-                logger.debug("Skipping shard resolution for excluded path: {}", requestPath);
+                logger.debug("Skipping shard resolution for excluded path: {}", request.getRequestURI());
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            // Extract account-id from headers
-            String accountIdHeader = request.getHeader(ACCOUNT_ID_HEADER);
+            // Extract and validate tenant ID from request header
+            // For shard selector, missing tenant ID is allowed (will use global DB)
+            TenantFilterUtils.TenantValidationResult validationResult =
+                TenantFilterUtils.extractAndValidateTenantId(request, accountValidationService, logger, false);
 
-            if (accountIdHeader == null || accountIdHeader.trim().isEmpty()) {
-                logger.debug("No {} header found for request: {} {} - will use global DB",
-                    ACCOUNT_ID_HEADER, method, requestPath);
-                // Continue without setting tenant context - will use global DB
+            if (!validationResult.isValid()) {
+                TenantFilterUtils.sendErrorResponse(response, validationResult.getErrorStatus(), validationResult.getErrorMessage());
+                return;
+            }
+
+            Long accountId = validationResult.getTenantId();
+            if (accountId == null) {
+                // No tenant ID provided - continue without setting tenant context (will use global DB)
+                logger.debug("No tenant ID provided for request: {} - will use global DB", requestDescription);
                 filterChain.doFilter(request, response);
-                return;
-            }
-
-            Long accountId;
-            try {
-                accountId = Long.valueOf(accountIdHeader.trim());
-            } catch (NumberFormatException e) {
-                logger.warn("Invalid {} header value '{}' for request: {} {}",
-                    ACCOUNT_ID_HEADER, accountIdHeader, method, requestPath);
-                sendErrorResponse(response, HttpStatus.BAD_REQUEST,
-                    "Invalid " + ACCOUNT_ID_HEADER + " header value");
-                return;
-            }
-
-            // Validate that account exists and is active
-            if (!accountValidationService.isAccountValid(accountId)) {
-                logger.warn("Account {} not found or inactive for request: {} {}",
-                    accountId, method, requestPath);
-                sendErrorResponse(response, HttpStatus.NOT_FOUND,
-                    "Account not found or inactive");
                 return;
             }
 
@@ -112,7 +84,7 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
                 Optional<TenantShardMapping> mappingOpt = shardLookupService.findShardByTenantId(accountId);
                 if (!mappingOpt.isPresent() || !mappingOpt.get().isActive()) {
                     logger.warn("No active shard mapping found for account: {}", accountId);
-                    sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
+                    TenantFilterUtils.sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
                         "Tenant shard configuration not found");
                     return;
                 }
@@ -128,12 +100,12 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
                 // Set complete tenant context
                 TenantContext.setTenantInfo(tenantInfo);
 
-                logger.debug("Set shard context - tenant: {}, shard: {} for request: {} {}",
-                    accountId, shardId, method, requestPath);
+                logger.debug("Set shard context - tenant: {}, shard: {} for request: {}",
+                    accountId, shardId, requestDescription);
 
             } catch (Exception e) {
                 logger.error("Failed to resolve shard for account {}: {}", accountId, e.getMessage(), e);
-                sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
+                TenantFilterUtils.sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to resolve tenant shard information");
                 return;
             }
@@ -143,12 +115,12 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
 
         } catch (Exception e) {
             logger.error("Error in shard selector filter", e);
-            sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
+            TenantFilterUtils.sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
                 "Internal server error during shard selection");
         } finally {
             // Always clear tenant context after request processing
             TenantContext.clear();
-            logger.debug("Cleared shard context after request: {} {}", method, requestPath);
+            logger.debug("Cleared shard context after request: {}", requestDescription);
         }
     }
 
@@ -158,34 +130,6 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
      */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String requestPath = request.getRequestURI();
-        return isExcludedPath(requestPath);
-    }
-
-    /**
-     * Check if the request path should be excluded from shard resolution.
-     */
-    private boolean isExcludedPath(String requestPath) {
-        return EXCLUDED_PATHS.stream().anyMatch(requestPath::startsWith);
-    }
-
-    /**
-     * Send JSON error response.
-     */
-    private void sendErrorResponse(HttpServletResponse response, HttpStatus status, String message)
-            throws IOException {
-        response.setStatus(status.value());
-        response.setContentType(CONTENT_TYPE_JSON);
-        response.setCharacterEncoding("UTF-8");
-
-        String jsonResponse = String.format(
-            "{\"error\": \"%s\", \"message\": \"%s\", \"status\": %d}",
-            status.getReasonPhrase(),
-            message,
-            status.value()
-        );
-
-        response.getWriter().write(jsonResponse);
-        response.getWriter().flush();
+        return TenantFilterUtils.isExcludedPath(request.getRequestURI());
     }
 }

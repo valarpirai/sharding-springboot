@@ -114,6 +114,12 @@
             <artifactId>spring-data-jpa</artifactId>
         </dependency>
 
+        <!-- Spring Transactions for routing transaction manager -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
         <!-- Optional dependencies for database drivers -->
         <dependency>
             <groupId>org.postgresql</groupId>

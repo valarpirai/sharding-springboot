@@ -14,8 +14,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Filter to validate tenant (account-id) from request headers.
@@ -32,17 +30,6 @@ public class TenantValidationFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(TenantValidationFilter.class);
 
-    private static final String ACCOUNT_ID_HEADER = "account-id";
-    private static final String CONTENT_TYPE_JSON = "application/json";
-
-    // Paths that don't require tenant validation
-    private static final List<String> EXCLUDED_PATHS = Arrays.asList(
-        "/api/signup",           // Account signup doesn't require existing tenant
-        "/swagger-ui",           // Swagger UI
-        "/v3/api-docs",          // OpenAPI docs
-        "/actuator"              // Health checks and monitoring
-    );
-
     private final AccountValidationService accountValidationService;
 
     public TenantValidationFilter(AccountValidationService accountValidationService) {
@@ -53,72 +40,52 @@ public class TenantValidationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String requestPath = request.getRequestURI();
-        String method = request.getMethod();
-
-        logger.debug("Processing request: {} {}", method, requestPath);
+        String requestDescription = TenantFilterUtils.getRequestDescription(request);
+        logger.debug("Processing tenant validation for request: {}", requestDescription);
 
         try {
             // Skip tenant validation for excluded paths
             if (shouldNotFilter(request)) {
-                logger.debug("Skipping tenant validation for excluded path: {}", requestPath);
+                logger.debug("Skipping tenant validation for excluded path: {}", request.getRequestURI());
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            // Extract account-id from headers
-            String accountIdHeader = request.getHeader(ACCOUNT_ID_HEADER);
+            // Extract and validate tenant ID from request header
+            // For tenant validation, missing tenant ID is required (error if missing)
+            TenantFilterUtils.TenantValidationResult validationResult =
+                TenantFilterUtils.extractAndValidateTenantId(request, accountValidationService, logger, true);
 
-            if (accountIdHeader == null || accountIdHeader.trim().isEmpty()) {
-                logger.warn("Missing {} header for request: {} {}", ACCOUNT_ID_HEADER, method, requestPath);
-                sendErrorResponse(response, HttpStatus.BAD_REQUEST,
-                    "Missing required header: " + ACCOUNT_ID_HEADER);
+            if (!validationResult.isValid()) {
+                TenantFilterUtils.sendErrorResponse(response, validationResult.getErrorStatus(), validationResult.getErrorMessage());
                 return;
             }
 
-            Long accountId;
-            try {
-                accountId = Long.valueOf(accountIdHeader.trim());
-            } catch (NumberFormatException e) {
-                logger.warn("Invalid {} header value '{}' for request: {} {}",
-                    ACCOUNT_ID_HEADER, accountIdHeader, method, requestPath);
-                sendErrorResponse(response, HttpStatus.BAD_REQUEST,
-                    "Invalid " + ACCOUNT_ID_HEADER + " header value");
-                return;
-            }
-
-            // Validate that account exists and is active
-            if (!accountValidationService.isAccountValid(accountId)) {
-                logger.warn("Account {} not found or inactive for request: {} {}",
-                    accountId, method, requestPath);
-                sendErrorResponse(response, HttpStatus.NOT_FOUND,
-                    "Account not found or inactive");
-                return;
-            }
+            Long accountId = validationResult.getTenantId();
 
             // Tenant context is already set by ShardSelectorFilter
             // Just validate that it matches our account ID
             Long contextTenantId = TenantContext.getCurrentTenantId();
             if (contextTenantId == null || !contextTenantId.equals(accountId)) {
                 logger.error("Tenant context mismatch - header: {}, context: {}", accountId, contextTenantId);
-                sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
+                TenantFilterUtils.sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
                     "Tenant context validation failed");
                 return;
             }
 
-            logger.debug("Validated tenant context for account_id: {} matches request: {} {}",
-                accountId, method, requestPath);
+            logger.debug("Validated tenant context for account_id: {} matches request: {}",
+                accountId, requestDescription);
 
             // Continue with the request
             filterChain.doFilter(request, response);
 
         } catch (Exception e) {
             logger.error("Error in tenant validation filter", e);
-            sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
+            TenantFilterUtils.sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
                 "Internal server error during tenant validation");
         } finally {
             // Tenant context clearing is handled by ShardSelectorFilter
-            logger.debug("Tenant validation completed for request: {} {}", method, requestPath);
+            logger.debug("Tenant validation completed for request: {}", requestDescription);
         }
     }
 
@@ -128,34 +95,6 @@ public class TenantValidationFilter extends OncePerRequestFilter {
      */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String requestPath = request.getRequestURI();
-        return isExcludedPath(requestPath);
-    }
-
-    /**
-     * Check if the request path should be excluded from tenant validation.
-     */
-    private boolean isExcludedPath(String requestPath) {
-        return EXCLUDED_PATHS.stream().anyMatch(requestPath::startsWith);
-    }
-
-    /**
-     * Send JSON error response.
-     */
-    private void sendErrorResponse(HttpServletResponse response, HttpStatus status, String message)
-            throws IOException {
-        response.setStatus(status.value());
-        response.setContentType(CONTENT_TYPE_JSON);
-        response.setCharacterEncoding("UTF-8");
-
-        String jsonResponse = String.format(
-            "{\"error\": \"%s\", \"message\": \"%s\", \"status\": %d}",
-            status.getReasonPhrase(),
-            message,
-            status.value()
-        );
-
-        response.getWriter().write(jsonResponse);
-        response.getWriter().flush();
+        return TenantFilterUtils.isExcludedPath(request.getRequestURI());
     }
 }

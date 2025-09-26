@@ -9,6 +9,7 @@ import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.routing.ConnectionRouter;
 import com.valarpirai.sharding.routing.RoutingDataSource;
 import com.valarpirai.sharding.routing.ShardDataSources;
+import com.valarpirai.sharding.transaction.RoutingTransactionManager;
 import com.valarpirai.sharding.validation.EntityValidator;
 import com.valarpirai.sharding.validation.QueryValidator;
 import com.valarpirai.sharding.validation.ValidatingDataSource;
@@ -26,6 +27,7 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
@@ -225,6 +227,20 @@ public class ShardingAutoConfiguration {
 
         RoutingDataSource routingDataSource = new RoutingDataSource(connectionRouter);
         return new ValidatingDataSource(routingDataSource, queryValidator);
+    }
+
+    /**
+     * Primary transaction manager with routing capabilities for sharded operations.
+     * This transaction manager automatically routes transactions to the appropriate
+     * shard based on tenant context, ensuring transactions are bound to the correct DataSource.
+     */
+    @Bean("transactionManager")
+    @Primary
+    @ConditionalOnMissingBean(name = "transactionManager")
+    public PlatformTransactionManager transactionManager(ConnectionRouter connectionRouter,
+                                                        DataSource globalDataSource) {
+        logger.info("Creating routing transaction manager for sharded operations");
+        return new RoutingTransactionManager(connectionRouter, globalDataSource);
     }
 
     /**
