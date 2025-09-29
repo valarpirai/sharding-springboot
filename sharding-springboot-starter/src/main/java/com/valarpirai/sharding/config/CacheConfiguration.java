@@ -150,6 +150,7 @@ public class CacheConfiguration {
 
         LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig);
         factory.setValidateConnection(true);
+        factory.afterPropertiesSet();
 
         return factory;
     }

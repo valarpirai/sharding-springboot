@@ -72,7 +72,7 @@ public class TenantShardMappingRepository implements ITenantShardMappingRepo {
      * @return the tenant-shard mapping if found
      */
     @Override
-    @Cacheable(value = "tenantShardMappings", key = "#tenantId", unless = "#result != null")
+    @Cacheable(value = "tenantShardMappings", key = "#tenantId")
     @WithSpan("sharding.shard_lookup.find_by_tenant_id")
     public Optional<TenantShardMapping> findShardByTenantId(Long tenantId) {
 

@@ -1,5 +1,6 @@
 package com.valarpirai.sharding.lookup;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,7 @@ public class TenantShardMapping {
     private String shardId;
     private String region;
     private String shardStatus;
+    @JsonIgnore
     private LocalDateTime createdAt;
 
     public TenantShardMapping(Long tenantId, String shardId, String region, String shardStatus) {
@@ -27,6 +29,7 @@ public class TenantShardMapping {
         this.createdAt = LocalDateTime.now();
     }
 
+    @JsonIgnore
     public boolean isActive() {
         return "ACTIVE".equalsIgnoreCase(shardStatus);
     }
