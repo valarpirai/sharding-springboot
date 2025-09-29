@@ -3,13 +3,6 @@ package com.valarpirai.sharding.routing;
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
-import com.valarpirai.sharding.observability.OpenTelemetryConfiguration;
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.LongHistogram;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,18 +24,7 @@ public class RoutingDataSource extends AbstractDataSource {
     private final ConnectionRouter connectionRouter;
 
 
-    // OpenTelemetry components - optional dependencies
-    @Autowired(required = false)
-    private Tracer tracer;
-
-    @Autowired(required = false)
-    private LongCounter connectionCounter;
-
-    @Autowired(required = false)
-    private LongHistogram connectionAcquisitionLatency;
-
-    @Autowired(required = false)
-    private OpenTelemetryConfiguration.ShardingObservabilityUtils observabilityUtils;
+    // OpenTelemetry tracing via @WithSpan annotations only
 
     public RoutingDataSource(ConnectionRouter connectionRouter) {
         this.connectionRouter = connectionRouter;
@@ -54,25 +36,18 @@ public class RoutingDataSource extends AbstractDataSource {
         long startTime = System.currentTimeMillis();
         TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-        Span currentSpan = Span.current();
-        if (tenantInfo != null && currentSpan != null) {
-            currentSpan.setAllAttributes(createConnectionAttributes(tenantInfo, "get_connection"));
-        }
 
         try {
             DataSource targetDataSource = determineTargetDataSource();
             Connection connection = targetDataSource.getConnection();
 
             // Record metrics
-            recordConnectionMetrics(tenantInfo, startTime, "success");
 
             logger.debug("Obtained connection from target DataSource for tenant: {}",
                         TenantContext.getCurrentTenantId());
 
             return connection;
         } catch (SQLException e) {
-            recordConnectionMetrics(tenantInfo, startTime, "error");
-            currentSpan.recordException(e);
             throw e;
         }
     }
@@ -83,25 +58,18 @@ public class RoutingDataSource extends AbstractDataSource {
         long startTime = System.currentTimeMillis();
         TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
-        Span currentSpan = Span.current();
-        if (tenantInfo != null && currentSpan != null) {
-            currentSpan.setAllAttributes(createConnectionAttributes(tenantInfo, "get_connection_with_credentials"));
-        }
 
         try {
             DataSource targetDataSource = determineTargetDataSource();
             Connection connection = targetDataSource.getConnection(username, password);
 
             // Record metrics
-            recordConnectionMetrics(tenantInfo, startTime, "success");
 
             logger.debug("Obtained connection with credentials from target DataSource for tenant: {}",
                         TenantContext.getCurrentTenantId());
 
             return connection;
         } catch (SQLException e) {
-            recordConnectionMetrics(tenantInfo, startTime, "error");
-            currentSpan.recordException(e);
             throw e;
         }
     }
@@ -221,42 +189,7 @@ public class RoutingDataSource extends AbstractDataSource {
         return connectionRouter;
     }
 
-    /**
-     * Create attributes for connection operations.
-     */
-    private Attributes createConnectionAttributes(TenantInfo tenantInfo, String operationType) {
-        if (observabilityUtils == null) {
-            return Attributes.empty();
-        }
 
-        String shardId = tenantInfo != null ? tenantInfo.shardId() : null;
-        boolean hasShardDataSource = tenantInfo != null && tenantInfo.shardDataSource() != null;
-        String dataSourceType = hasShardDataSource ? "shard" : "global";
-
-        return observabilityUtils.createDataSourceAttributes(shardId, dataSourceType, operationType);
-    }
-
-    /**
-     * Record connection metrics.
-     */
-    private void recordConnectionMetrics(TenantInfo tenantInfo, long startTime, String status) {
-        if (connectionCounter != null) {
-            Attributes attributes = createConnectionAttributes(tenantInfo, "connection")
-                .toBuilder()
-                .put(OpenTelemetryConfiguration.OPERATION_TYPE, status)
-                .build();
-            connectionCounter.add(1, attributes);
-        }
-
-        if (connectionAcquisitionLatency != null) {
-            long duration = System.currentTimeMillis() - startTime;
-            Attributes attributes = createConnectionAttributes(tenantInfo, "acquisition_latency")
-                .toBuilder()
-                .put(OpenTelemetryConfiguration.OPERATION_TYPE, status)
-                .build();
-            connectionAcquisitionLatency.record(duration, attributes);
-        }
-    }
 
     /**
      * Functional interface for SQL operations.

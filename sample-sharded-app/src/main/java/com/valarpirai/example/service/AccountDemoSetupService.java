@@ -8,7 +8,7 @@ import com.valarpirai.example.repository.sharded.*;
 import com.valarpirai.example.security.PermissionMasks;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
-import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import com.valarpirai.sharding.routing.ConnectionRouter;
 import org.slf4j.Logger;
@@ -36,7 +36,7 @@ public class AccountDemoSetupService {
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ShardLookupService shardLookupService;
+    private final IShardLookupService shardLookupService;
     private final ConnectionRouter connectionRouter;
 
     public AccountDemoSetupService(AccountRepository accountRepository,
@@ -45,7 +45,7 @@ public class AccountDemoSetupService {
                                  UserRepository userRepository,
                                  TicketRepository ticketRepository,
                                  PasswordEncoder passwordEncoder,
-                                 ShardLookupService shardLookupService,
+                                 IShardLookupService shardLookupService,
                                  ConnectionRouter connectionRouter) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;

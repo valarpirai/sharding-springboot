@@ -28,10 +28,11 @@ Correct Shard DataSource
 ```
 
 **Key Changes in Latest Version:**
-- ✅ **Simplified Architecture**: Removed RoutingTransactionManager (redundant with dual DataSource)
+- ✅ **Simplified Architecture**: Uses dual DataSource approach instead of routing transaction manager
 - ✅ **No AOP Overhead**: Removed RepositoryShardingAspect for better performance
 - ✅ **Dual DataSource**: Automatic routing based on entity packages
 - ✅ **Lombok Integration**: Reduced boilerplate in configuration classes
+- ✅ **Minimal OpenTelemetry**: Simplified to @WithSpan annotations only
 
 ## 🔄 **Complete Transaction Flow**
 
@@ -126,7 +127,7 @@ public class AccountSignupService {
 ### **3. Shard Selection Logic**
 
 ```java
-// In RoutingTransactionManager.determineTargetTransactionManager()
+// Shard selection with dual DataSource approach
 
 TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
@@ -239,7 +240,7 @@ public class AccountDemoSetupService {
 ## ⚙️ **Advanced Configuration**
 
 ### **Transaction Manager Properties**
-The `RoutingTransactionManager` inherits standard Spring transaction properties:
+The dual DataSource approach uses standard Spring transaction properties:
 
 ```java
 @Service
@@ -349,7 +350,7 @@ public class TicketController {
         @RequestBody CreateTicketRequest request) {
 
         // ShardSelectorFilter already set tenant context
-        // RoutingTransactionManager automatically selected shard transaction manager
+        // Dual DataSource automatically routes to correct shard
         // All repository operations below use same shard in same transaction
 
         // Validate requester exists

@@ -2,7 +2,7 @@ package com.valarpirai.sharding.iterator;
 
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
-import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import com.valarpirai.sharding.routing.ConnectionRouter;
 import org.slf4j.Logger;
@@ -29,10 +29,10 @@ public class TenantIterator {
     private static final Logger logger = LoggerFactory.getLogger(TenantIterator.class);
     private static final int DEFAULT_BATCH_SIZE = 10;
 
-    private final ShardLookupService shardLookupService;
+    private final IShardLookupService shardLookupService;
     private final ConnectionRouter connectionRouter;
 
-    public TenantIterator(ShardLookupService shardLookupService, ConnectionRouter connectionRouter) {
+    public TenantIterator(IShardLookupService shardLookupService, ConnectionRouter connectionRouter) {
         this.shardLookupService = shardLookupService;
         this.connectionRouter = connectionRouter;
     }

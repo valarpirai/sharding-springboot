@@ -2,7 +2,7 @@
 
 ## 🎯 **Overview**
 
-The Galaxy Sharding library now includes comprehensive OpenTelemetry observability support, providing distributed tracing, metrics collection, and performance monitoring for all sharding operations.
+The Galaxy Sharding library includes minimal OpenTelemetry support through @WithSpan annotations for distributed tracing. Metrics collection and complex instrumentation have been simplified to keep the library lightweight.
 
 ## 📊 **What Gets Traced and Measured**
 
@@ -15,41 +15,39 @@ The library automatically traces critical operations using `@WithSpan` annotatio
 - `sharding.datasource.get_connection_with_credentials` - Connection with credentials
 - `sharding.datasource.determine_target` - Shard routing decisions
 
-#### **RoutingTransactionManager Operations**
-- `sharding.transaction.get_transaction` - Transaction creation
-- `sharding.transaction.commit` - Transaction commits
-- `sharding.transaction.rollback` - Transaction rollbacks
+#### **Transaction Management Operations**
+- Transaction operations are handled automatically by Spring's dual DataSource configuration
+- No custom transaction manager instrumentation in simplified setup
 
 #### **ShardLookupService Operations**
 - `sharding.shard_lookup.find_by_tenant_id` - Tenant-to-shard lookups
 - `sharding.shard_lookup.create_mapping` - New tenant mapping creation
 - `sharding.shard_lookup.get_latest_shard_id` - Latest shard queries
 
-### **📈 Metrics Collected**
+### **📈 Metrics Collection**
 
-#### **Connection Metrics**
-- `sharding.connections` - Connection acquisition count
-- `sharding.connection_acquisition_duration` - Connection latency histogram
+**Note**: Manual metrics collection has been removed from the library to keep it lightweight.
 
-#### **Transaction Metrics**
-- `sharding.transactions` - Transaction operation count
+#### **Available via OpenTelemetry Auto-Instrumentation**
+When using OpenTelemetry auto-instrumentation or Spring Boot starter, you'll get:
+- JVM metrics (memory, GC, threads)
+- HTTP request metrics
+- Database connection pool metrics (HikariCP)
+- Spring transaction metrics
 
-#### **Shard Lookup Metrics**
-- `sharding.shard_lookups` - Shard lookup operation count
-- `sharding.shard_lookup_duration` - Shard lookup latency histogram
+#### **Custom Metrics**
+If you need specific sharding metrics, you can add them in your application:
+```java
+@Component
+public class ShardingMetrics {
+    private final Counter shardLookups;
 
-### **🏷️ Standard Attributes**
-
-All traces and metrics include consistent attributes:
-
-```yaml
-shard.id: "shard1"                    # Target shard identifier
-tenant.id: "123456"                   # Tenant ID being processed
-operation.type: "get_connection"      # Type of operation
-datasource.type: "shard"              # DataSource type (shard/global)
-query.type: "select"                  # Query type being executed
-cache.hit: true                       # Whether cache was hit
-```
+    public ShardingMetrics(MeterRegistry meterRegistry) {
+        this.shardLookups = Counter.builder("sharding.lookups")
+            .description("Shard lookup operations")
+            .register(meterRegistry);
+    }
+}
 
 ## ⚙️ **Configuration**
 

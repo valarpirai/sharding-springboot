@@ -3,7 +3,7 @@ package com.valarpirai.example.filter;
 import com.valarpirai.example.service.AccountValidationService;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
-import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import com.valarpirai.sharding.routing.ConnectionRouter;
 import org.slf4j.Logger;
@@ -34,11 +34,11 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardSelectorFilter.class);
 
-    private final ShardLookupService shardLookupService;
+    private final IShardLookupService shardLookupService;
     private final AccountValidationService accountValidationService;
     private final ConnectionRouter connectionRouter;
 
-    public ShardSelectorFilter(ShardLookupService shardLookupService,
+    public ShardSelectorFilter(IShardLookupService shardLookupService,
                                AccountValidationService accountValidationService,
                                ConnectionRouter connectionRouter) {
         this.shardLookupService = shardLookupService;

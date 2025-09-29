@@ -102,10 +102,11 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Spring AOP for repository sharding aspect -->
+        <!-- Spring AOP (optional - for future extensibility) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- Spring Data JPA for repository interception -->
@@ -114,34 +115,17 @@
             <artifactId>spring-data-jpa</artifactId>
         </dependency>
 
-        <!-- Spring Transactions for routing transaction manager -->
+        <!-- Spring Transactions for dual DataSource transaction management -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
         </dependency>
 
-        <!-- OpenTelemetry for observability and distributed tracing -->
+        <!-- OpenTelemetry minimal support for @WithSpan annotations -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
             <version>1.32.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-context</artifactId>
-            <version>1.32.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-semconv</artifactId>
-            <version>1.21.0-alpha</version>
-        </dependency>
-
-        <!-- OpenTelemetry instrumentation for Spring Boot -->
-        <dependency>
-            <groupId>io.opentelemetry.instrumentation</groupId>
-            <artifactId>opentelemetry-spring-boot-starter</artifactId>
-            <version>1.32.0-alpha</version>
             <optional>true</optional>
         </dependency>
 
@@ -150,6 +134,7 @@
             <groupId>io.opentelemetry.instrumentation</groupId>
             <artifactId>opentelemetry-instrumentation-annotations</artifactId>
             <version>1.32.0</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- Optional dependencies for database drivers -->

@@ -22,10 +22,10 @@ public class ShardUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardUtils.class);
 
-    private final ShardLookupService shardLookupService;
+    private final IShardLookupService shardLookupService;
     private final ShardingConfigProperties shardingConfig;
 
-    public ShardUtils(ShardLookupService shardLookupService, ShardingConfigProperties shardingConfig) {
+    public ShardUtils(IShardLookupService shardLookupService, ShardingConfigProperties shardingConfig) {
         this.shardLookupService = shardLookupService;
         this.shardingConfig = shardingConfig;
     }

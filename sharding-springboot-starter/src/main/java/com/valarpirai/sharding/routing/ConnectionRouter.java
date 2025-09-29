@@ -1,8 +1,7 @@
 package com.valarpirai.sharding.routing;
 
-import com.valarpirai.sharding.config.ShardConfigProperties;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,13 +21,13 @@ public class ConnectionRouter {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionRouter.class);
 
-    private final ShardLookupService shardLookupService;
+    private final IShardLookupService shardLookupService;
     private final Map<String, ShardDataSources> shardDataSources;
     private final DataSource globalDataSource;
 
-    public ConnectionRouter(ShardLookupService shardLookupService,
-                          Map<String, ShardDataSources> shardDataSources,
-                          DataSource globalDataSource) {
+    public ConnectionRouter(IShardLookupService shardLookupService,
+                            Map<String, ShardDataSources> shardDataSources,
+                            DataSource globalDataSource) {
         this.shardLookupService = shardLookupService;
         this.shardDataSources = new ConcurrentHashMap<>(shardDataSources);
         this.globalDataSource = globalDataSource;
