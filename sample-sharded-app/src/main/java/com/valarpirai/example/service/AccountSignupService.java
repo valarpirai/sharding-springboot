@@ -18,7 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service for handling account signup and initial setup.
@@ -57,8 +56,9 @@ public class AccountSignupService {
 
     /**
      * Create a new account with admin user and trigger background demo setup.
+     * Note: No @Transactional due to dual DataSource - global and sharded operations
+     * use different transaction managers. Manual cleanup is performed on error.
      */
-    @Transactional
     public SignupResponse createAccount(SignupRequest request) {
         logger.info("Creating new account: {}", request.getAccountName());
 
