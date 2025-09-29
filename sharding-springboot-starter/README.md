@@ -151,26 +151,90 @@ public class GlobalConfig {
 
 ### 4. Use in Your Application
 
+#### Single DataSource Operations
+
 ```java
 @Service
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
 
+    // ✅ @Transactional works for single DataSource operations
+    @Transactional
     public Customer createCustomer(Customer customer) {
-        // Set tenant context before database operations
-        TenantContext.setTenantId(customer.getTenantId());
-        try {
+        return TenantContext.executeInTenantContext(customer.getTenantId(), () -> {
             return customerRepository.save(customer);
-        } finally {
-            TenantContext.clear();
-        }
+        });
     }
 
     public List<Customer> getCustomersByTenant(Long tenantId) {
         return TenantContext.executeInTenantContext(tenantId, () -> {
             return customerRepository.findAll(); // Automatically routed to correct shard
         });
+    }
+}
+
+@Service
+public class GlobalConfigService {
+
+    private final GlobalConfigRepository globalConfigRepository;
+
+    // ✅ @Transactional works for global entities
+    @Transactional
+    public GlobalConfig saveConfig(GlobalConfig config) {
+        return globalConfigRepository.save(config);
+    }
+}
+```
+
+#### Cross-DataSource Operations (Dual DataSource Pattern)
+
+```java
+@Service
+public class AccountSetupService {
+
+    private final AccountRepository accountRepository;          // Global entity
+    private final UserRepository userRepository;              // Sharded entity
+    private final ShardLookupService shardLookupService;
+
+    // ❌ Don't use @Transactional for cross-DataSource operations
+    public AccountResponse createAccountWithUser(AccountRequest request) {
+        Account account = null;
+
+        try {
+            // 1. Create global entity (uses globalTransactionManager automatically)
+            account = Account.builder()
+                .name(request.getName())
+                .adminEmail(request.getEmail())
+                .build();
+            account = accountRepository.save(account);
+
+            // 2. Create tenant-shard mapping
+            shardLookupService.createMapping(account.getId(), "shard1", "us-east-1");
+
+            // 3. Set tenant context for sharded operations
+            TenantContext.setTenantId(account.getId());
+
+            // 4. Create sharded entities (uses shardedTransactionManager automatically)
+            User adminUser = User.builder()
+                .accountId(account.getId())
+                .email(request.getEmail())
+                .role("ADMIN")
+                .build();
+            userRepository.save(adminUser);
+
+            return AccountResponse.success(account, adminUser);
+
+        } catch (Exception e) {
+            // 5. Manual cleanup on error (compensating transaction pattern)
+            if (account != null) {
+                account.setDeleted(true);
+                accountRepository.save(account);
+            }
+            throw new RuntimeException("Account creation failed", e);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }
 ```
@@ -327,6 +391,12 @@ The library applies optimal defaults and database-specific optimizations:
 - 📦 **Package-Based Configuration**: Separate packages for different entity types
 - ⚡ **Performance**: Eliminates unnecessary routing for global entities
 - 🔧 **Flexibility**: Configurable package patterns to match your project structure
+
+**Transaction Handling with Dual DataSource:**
+- ⚠️ **Single @Transactional Limitation**: Cannot span both global and sharded operations
+- ✅ **Separate Transactions**: Each DataSource gets its own transaction manager
+- 🔄 **Manual Coordination**: Use programmatic transaction management for cross-DataSource operations
+- 🛡️ **Error Handling**: Implement manual cleanup for multi-DataSource operations
 
 **Redis-Specific Configuration:**
 

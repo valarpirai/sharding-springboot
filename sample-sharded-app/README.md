@@ -252,6 +252,60 @@ springdoc.api-docs.path=/v3/api-docs
 springdoc.swagger-ui.path=/swagger-ui.html
 ```
 
+## Transaction Patterns
+
+### Single DataSource Operations
+```java
+// ✅ Use @Transactional for operations within the same DataSource
+@Transactional
+public User createUser(UserRequest request, Long accountId) {
+    return TenantContext.executeInTenantContext(accountId, () -> {
+        // All sharded operations - single transaction
+        User user = userRepository.save(newUser);
+        roleRepository.findById(user.getRoleId());
+        return user;
+    });
+}
+
+@Transactional
+public Account updateAccount(Long id, AccountRequest request) {
+    // All global operations - single transaction
+    Account account = accountRepository.findById(id);
+    account.setName(request.getName());
+    return accountRepository.save(account);
+}
+```
+
+### Cross-DataSource Operations
+```java
+// ❌ Don't use @Transactional for cross-DataSource operations
+// ✅ Use manual coordination with proper error handling
+public SignupResponse createAccount(SignupRequest request) {
+    Account account = null;
+    try {
+        // 1. Global operation
+        account = accountRepository.save(newAccount);
+
+        // 2. Set tenant context
+        TenantContext.setTenantId(account.getId());
+
+        // 3. Sharded operations
+        User adminUser = userRepository.save(newUser);
+
+        return SignupResponse.success(account, adminUser);
+    } catch (Exception e) {
+        // 4. Compensating transaction
+        if (account != null) {
+            account.delete();
+            accountRepository.save(account);
+        }
+        throw e;
+    } finally {
+        TenantContext.clear();
+    }
+}
+```
+
 ## Permission System
 
 ### Permission Structure

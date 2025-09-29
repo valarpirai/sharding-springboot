@@ -2,7 +2,15 @@
 
 ## 🎯 **How @Transactional Works with Our Sharding Implementation**
 
-Our sharding library now provides **automatic transaction routing** that seamlessly handles `@Transactional` methods across sharded and non-sharded operations.
+Our sharding library provides **automatic transaction routing** with **dual DataSource support** for seamless handling of global and sharded operations.
+
+## ⚠️ **Important: Dual DataSource Transaction Limitations**
+
+With dual DataSource configuration, **@Transactional cannot span both global and sharded operations** in a single method. Each DataSource has its own transaction manager:
+
+- **Global entities**: Use `globalTransactionManager`
+- **Sharded entities**: Use `shardedTransactionManager` (primary)
+- **Cross-DataSource operations**: Require manual transaction coordination
 
 ## 📋 **Architecture Overview**
 
@@ -27,24 +35,80 @@ Correct Shard DataSource
 
 ## 🔄 **Complete Transaction Flow**
 
-### **1. Service Method with @Transactional**
+### **1. Single DataSource @Transactional (✅ Recommended)**
+
 ```java
 @Service
 public class UserService {
 
-    @Transactional  // ← This now works automatically with sharding!
+    @Transactional  // ✅ Works perfectly for sharded operations only
     public User createUser(UserCreateRequest request, Long tenantId) {
-        // Multiple repository operations in same transaction
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email exists");
+        return TenantContext.executeInTenantContext(tenantId, () -> {
+            // All operations use shardedTransactionManager
+            if (userRepository.existsByEmail(request.getEmail())) {
+                throw new IllegalArgumentException("Email exists");
+            }
+
+            User user = userRepository.save(newUser);  // Sharded operation
+            roleRepository.findById(user.getRoleId());  // Sharded operation
+
+            return user;
+        });
+    }
+}
+
+@Service
+public class GlobalConfigService {
+
+    @Transactional  // ✅ Works perfectly for global operations only
+    public GlobalConfig updateConfig(String key, String value) {
+        // All operations use globalTransactionManager
+        GlobalConfig config = globalConfigRepository.findByKey(key);
+        config.setValue(value);
+        return globalConfigRepository.save(config);
+    }
+}
+```
+
+### **2. Cross-DataSource Operations (❌ @Transactional Limitations)**
+
+```java
+@Service
+public class AccountSignupService {
+
+    // ❌ DON'T DO THIS - @Transactional can't span both DataSources
+    @Transactional
+    public AccountResponse createAccountWithUser(SignupRequest request) {
+        Account account = accountRepository.save(newAccount);     // Global
+        User user = userRepository.save(newUser);                // Sharded
+        return new AccountResponse(account, user);
+    }
+
+    // ✅ DO THIS - Manual coordination without @Transactional
+    public AccountResponse createAccountWithUser(SignupRequest request) {
+        Account account = null;
+        try {
+            // 1. Global operation (auto-managed by globalTransactionManager)
+            account = accountRepository.save(newAccount);
+
+            // 2. Set tenant context for sharded operations
+            TenantContext.setTenantId(account.getId());
+
+            // 3. Sharded operation (auto-managed by shardedTransactionManager)
+            User user = userRepository.save(newUser);
+
+            return new AccountResponse(account, user);
+
+        } catch (Exception e) {
+            // 4. Manual cleanup (compensating transaction pattern)
+            if (account != null) {
+                account.setDeleted(true);
+                accountRepository.save(account);
+            }
+            throw e;
+        } finally {
+            TenantContext.clear();
         }
-
-        User user = userRepository.save(newUser);  // Sharded operation
-
-        // All operations are in the same transaction on the same shard
-        roleRepository.findById(user.getRoleId());  // Sharded operation
-
-        return user;
     }
 }
 ```
