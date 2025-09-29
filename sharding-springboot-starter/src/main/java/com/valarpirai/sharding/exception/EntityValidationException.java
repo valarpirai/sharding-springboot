@@ -1,4 +1,4 @@
-package com.valarpirai.sharding.validation;
+package com.valarpirai.sharding.exception;
 
 /**
  * Exception thrown when entity validation fails during auto-configuration.

@@ -24,7 +24,7 @@ public class HikariConfigUtil {
      * @return configured HikariConfig
      */
     public static HikariConfig createHikariConfig(HikariConfigProperties hikariProps,
-                                                DatabaseConfigProperties dbProps,
+                                                DatabaseConfig dbProps,
                                                 String poolName) {
         HikariConfig config = new HikariConfig();
 
@@ -58,7 +58,7 @@ public class HikariConfigUtil {
     /**
      * Set basic connection properties (URL, username, password, driver).
      */
-    private static void setBasicConnectionProperties(HikariConfig config, DatabaseConfigProperties dbProps) {
+    private static void setBasicConnectionProperties(HikariConfig config, DatabaseConfig dbProps) {
         config.setJdbcUrl(dbProps.getUrl());
         config.setUsername(dbProps.getUsername());
         config.setPassword(dbProps.getPassword());

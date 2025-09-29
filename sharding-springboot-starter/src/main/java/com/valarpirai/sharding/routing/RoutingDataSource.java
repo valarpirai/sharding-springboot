@@ -3,6 +3,7 @@ package com.valarpirai.sharding.routing;
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
+import com.valarpirai.sharding.exception.RoutingException;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

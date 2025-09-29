@@ -1,6 +1,5 @@
 package com.valarpirai.sharding.config;
 
-import com.valarpirai.sharding.cache.CacheStatisticsService;
 import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
 import com.valarpirai.sharding.lookup.ShardLookupService;
@@ -50,7 +49,6 @@ class ShardingAutoConfigurationTest {
                     assertThat(context).hasSingleBean(EntityValidator.class);
                     assertThat(context).hasSingleBean(ConnectionRouter.class);
                     assertThat(context).hasSingleBean(CacheManager.class);
-                    assertThat(context).hasSingleBean(CacheStatisticsService.class);
                 });
     }
 

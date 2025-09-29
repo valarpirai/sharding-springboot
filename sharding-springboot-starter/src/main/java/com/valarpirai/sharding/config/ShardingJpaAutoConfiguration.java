@@ -26,13 +26,13 @@ import javax.sql.DataSource;
 @Configuration
 @ConditionalOnProperty(prefix = "app.sharding.dual-datasource", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(DualDataSourceProperties.class)
-public class ShardingDataSourceAutoConfiguration {
+public class ShardingJpaAutoConfiguration {
 
-    private static final Logger logger = LoggerFactory.getLogger(ShardingDataSourceAutoConfiguration.class);
+    private static final Logger logger = LoggerFactory.getLogger(ShardingJpaAutoConfiguration.class);
 
     private final DualDataSourceProperties properties;
 
-    public ShardingDataSourceAutoConfiguration(DualDataSourceProperties properties) {
+    public ShardingJpaAutoConfiguration(DualDataSourceProperties properties) {
         this.properties = properties;
         logger.info("Dual DataSource auto-configuration enabled with packages - Global: {}, Sharded: {}",
                 properties.getGlobalRepositoryBasePackage(), properties.getShardedRepositoryBasePackage());
@@ -123,5 +123,4 @@ public class ShardingDataSourceAutoConfiguration {
             return new JpaTransactionManager(shardedEntityManagerFactory.getObject());
         }
     }
-
 }

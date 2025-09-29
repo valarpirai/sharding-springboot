@@ -1,4 +1,4 @@
-package com.valarpirai.sharding.routing;
+package com.valarpirai.sharding.exception;
 
 /**
  * Exception thrown when database connection routing fails.

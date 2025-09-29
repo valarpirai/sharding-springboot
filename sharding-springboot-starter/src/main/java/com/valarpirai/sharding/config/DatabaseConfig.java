@@ -7,8 +7,7 @@ import lombok.Data;
  * Represents master or replica database configuration.
  */
 @Data
-public class DatabaseConfigProperties {
-
+public class DatabaseConfig {
     private String url;
     private String username;
     private String password;

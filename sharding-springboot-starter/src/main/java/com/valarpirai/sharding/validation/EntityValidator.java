@@ -2,10 +2,15 @@ package com.valarpirai.sharding.validation;
 
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.config.ShardingConfigProperties;
+import com.valarpirai.sharding.exception.EntityValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -240,15 +245,46 @@ public class EntityValidator {
 
     /**
      * Scan for entity classes using class path scanning.
-     * This is a simplified implementation - in practice, you might want to use
-     * Spring's ClassPathScanningCandidateComponentProvider.
+     * Scans common entity packages and uses Spring's ClassPathScanningCandidateComponentProvider.
      */
     private Set<Class<?>> scanForEntityClasses() {
-        // For now, return empty set. In a full implementation, you would:
-        // 1. Use ClassPathScanningCandidateComponentProvider
-        // 2. Scan configured entity packages
-        // 3. Filter for @Entity annotated classes
-        return new HashSet<>();
+        Set<Class<?>> entityClasses = new HashSet<>();
+
+        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+        scanner.addIncludeFilter(new AnnotationTypeFilter(Entity.class));
+
+        // Common entity package patterns to scan
+        String[] packagePatterns = {
+            "com.valarpirai.example.entity",
+            "*.entity",
+            "*.domain",
+            "*.model",
+            "com.**.entity.**",
+            "org.**.entity.**"
+        };
+
+        for (String packagePattern : packagePatterns) {
+            try {
+                Set<BeanDefinition> candidateComponents = scanner.findCandidateComponents(packagePattern);
+                for (BeanDefinition beanDefinition : candidateComponents) {
+                    try {
+                        Class<?> entityClass = ClassUtils.forName(beanDefinition.getBeanClassName(),
+                                                                 applicationContext.getClassLoader());
+                        if (isJpaEntity(entityClass)) {
+                            entityClasses.add(entityClass);
+                            logger.debug("Found entity class via package scanning: {}", entityClass.getName());
+                        }
+                    } catch (ClassNotFoundException e) {
+                        logger.debug("Could not load class for entity scanning: {}", beanDefinition.getBeanClassName());
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("Could not scan package pattern {}: {}", packagePattern, e.getMessage());
+            }
+        }
+
+        logger.debug("Package scanning found {} entity classes", entityClasses.size());
+        return entityClasses;
     }
 
     /**

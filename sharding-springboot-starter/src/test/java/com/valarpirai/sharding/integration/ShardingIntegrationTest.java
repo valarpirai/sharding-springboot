@@ -1,7 +1,6 @@
 package com.valarpirai.sharding.integration;
 
 import com.valarpirai.sharding.annotation.ShardedEntity;
-import com.valarpirai.sharding.cache.CacheStatisticsService;
 import com.valarpirai.sharding.config.ShardingAutoConfiguration;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.lookup.ShardLookupService;
@@ -52,9 +51,6 @@ class ShardingIntegrationTest {
 
     @Autowired
     private ShardUtils shardUtils;
-
-    @Autowired
-    private CacheStatisticsService cacheStatisticsService;
 
     @Autowired
     private DataSource dataSource;
@@ -167,13 +163,6 @@ class ShardingIntegrationTest {
 
     @Test
     void testCacheIntegration() {
-        // Test cache statistics
-        CacheStatisticsService.CacheStatistics stats = cacheStatisticsService.getCacheStatistics();
-        assertNotNull(stats);
-        assertTrue(stats.isEnabled());
-        assertEquals("CAFFEINE", stats.getCacheType());
-        assertEquals(1, stats.getTtlHours());
-
         // Create a tenant mapping to test caching
         Long tenantId = 4001L;
         shardLookupService.createMapping(tenantId, "shard1", "test-region");

@@ -1,6 +1,5 @@
 package com.valarpirai.sharding.config;
 
-import com.valarpirai.sharding.cache.CacheStatisticsService;
 import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
 import com.valarpirai.sharding.lookup.ShardLookupService;
@@ -10,15 +9,12 @@ import com.valarpirai.sharding.routing.ConnectionRouter;
 import com.valarpirai.sharding.routing.RoutingDataSource;
 import com.valarpirai.sharding.routing.ShardDataSources;
 import com.valarpirai.sharding.validation.EntityValidator;
-import com.valarpirai.sharding.validation.QueryValidator;
-import com.valarpirai.sharding.validation.ValidatingDataSource;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,14 +29,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Auto-configuration class for the Galaxy Sharding library.
+ * Auto-configuration class for the Sharding library.
  * Sets up all necessary beans and validates configuration.
  */
 @Configuration
 @EnableConfigurationProperties(ShardingConfigProperties.class)
 @Import({CacheConfiguration.class,
-         ShardingDataSourceAutoConfiguration.class,
-         com.valarpirai.sharding.observability.OpenTelemetryConfiguration.class})
+         ShardingJpaAutoConfiguration.class})
 public class ShardingAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardingAutoConfiguration.class);
@@ -53,10 +48,9 @@ public class ShardingAutoConfiguration {
 
     @PostConstruct
     public void logConfiguration() {
-        logger.info("Initializing Galaxy Sharding with {} shards, {} tenant columns, validation: {}, caching: {} ({})",
+        logger.info("Initializing Sharding with {} shards, {} tenant columns, caching: {} ({})",
                    shardingConfig.getShards().size(),
                    shardingConfig.getTenantColumnNames().size(),
-                   shardingConfig.getValidation().getStrictness(),
                    shardingConfig.getCache().isEnabled() ? "enabled" : "disabled",
                    shardingConfig.getCache().getType());
     }
@@ -132,15 +126,6 @@ public class ShardingAutoConfiguration {
     }
 
     /**
-     * Query validator for SQL query validation.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public QueryValidator queryValidator() {
-        return new QueryValidator(shardingConfig);
-    }
-
-    /**
      * Entity validator for @ShardedEntity annotation validation.
      */
     @Bean
@@ -168,9 +153,9 @@ public class ShardingAutoConfiguration {
 
         Map<String, ShardDataSources> shardDataSources = new ConcurrentHashMap<>();
 
-        for (Map.Entry<String, ShardConfigProperties> entry : shardingConfig.getShards().entrySet()) {
+        for (Map.Entry<String, ShardConfig> entry : shardingConfig.getShards().entrySet()) {
             String shardId = entry.getKey();
-            ShardConfigProperties shardConfig = entry.getValue();
+            ShardConfig shardConfig = entry.getValue();
 
             logger.info("Creating DataSources for shard: {} (latest: {}, status: {})",
                        shardId, shardConfig.getLatest(), shardConfig.getStatus());
@@ -194,34 +179,22 @@ public class ShardingAutoConfiguration {
     }
 
     /**
-     * Cache statistics service for monitoring cache performance.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public CacheStatisticsService cacheStatisticsService(CacheManager cacheManager) {
-        return new CacheStatisticsService(cacheManager, shardingConfig);
-    }
-
-
-    /**
-     * Primary DataSource with routing and validation capabilities.
+     * Primary DataSource with routing capabilities.
      */
     @Bean
     @Primary
     @ConditionalOnMissingBean
-    public DataSource primaryDataSource(ConnectionRouter connectionRouter,
-                                       QueryValidator queryValidator) {
-        logger.info("Creating primary routing DataSource with query validation");
+    public DataSource primaryDataSource(ConnectionRouter connectionRouter) {
+        logger.info("Creating primary routing DataSource");
 
-        RoutingDataSource routingDataSource = new RoutingDataSource(connectionRouter);
-        return new ValidatingDataSource(routingDataSource, queryValidator);
+        return new RoutingDataSource(connectionRouter);
     }
 
 
     /**
      * Create ShardDataSources for a specific shard.
      */
-    private ShardDataSources createShardDataSources(String shardId, ShardConfigProperties shardConfig) {
+    private ShardDataSources createShardDataSources(String shardId, ShardConfig shardConfig) {
         // Create master DataSource
         DataSource masterDataSource = createDataSource(
                 shardId + "-master",
@@ -231,9 +204,9 @@ public class ShardingAutoConfiguration {
 
         // Create replica DataSources
         Map<String, DataSource> replicaDataSources = new HashMap<>();
-        for (Map.Entry<String, DatabaseConfigProperties> replicaEntry : shardConfig.getReplicas().entrySet()) {
+        for (Map.Entry<String, DatabaseConfig> replicaEntry : shardConfig.getReplicas().entrySet()) {
             String replicaName = replicaEntry.getKey();
-            DatabaseConfigProperties replicaConfig = replicaEntry.getValue();
+            DatabaseConfig replicaConfig = replicaEntry.getValue();
 
             String poolName = shardId + "-" + replicaName;
             DataSource replicaDataSource = createDataSource(poolName, replicaConfig, shardConfig.getHikari());
@@ -254,7 +227,7 @@ public class ShardingAutoConfiguration {
      * Create a DataSource with HikariCP configuration.
      */
     private DataSource createDataSource(String poolName,
-                                      DatabaseConfigProperties dbConfig,
+                                      DatabaseConfig dbConfig,
                                       HikariConfigProperties hikariConfig) {
         logger.debug("Creating DataSource: {}", poolName);
 
@@ -270,8 +243,8 @@ public class ShardingAutoConfiguration {
     /**
      * Create DatabaseConfigProperties from GlobalDatabaseConfig.
      */
-    private DatabaseConfigProperties createDatabaseConfig(ShardingConfigProperties.GlobalDatabaseConfig globalConfig) {
-        DatabaseConfigProperties dbConfig = new DatabaseConfigProperties();
+    private DatabaseConfig createDatabaseConfig(ShardingConfigProperties.GlobalDatabaseConfig globalConfig) {
+        DatabaseConfig dbConfig = new DatabaseConfig();
         dbConfig.setUrl(globalConfig.getUrl());
         dbConfig.setUsername(globalConfig.getUsername());
         dbConfig.setPassword(globalConfig.getPassword());

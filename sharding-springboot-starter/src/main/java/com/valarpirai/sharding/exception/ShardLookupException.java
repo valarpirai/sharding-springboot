@@ -1,4 +1,4 @@
-package com.valarpirai.sharding.lookup;
+package com.valarpirai.sharding.exception;
 
 /**
  * Exception thrown when shard lookup operations fail.

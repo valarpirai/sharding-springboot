@@ -703,14 +703,7 @@ app.sharding.cache.record-stats=true
 @RestController
 public class CacheController {
 
-    private final CacheStatisticsService cacheStatisticsService;
     private final ShardLookupService shardLookupService;
-
-    // Get cache performance metrics
-    @GetMapping("/cache/stats")
-    public CacheStatistics getCacheStats() {
-        return cacheStatisticsService.getCacheStatistics();
-    }
 
     // Clear all cached mappings
     @PostMapping("/cache/clear")

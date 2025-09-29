@@ -3,7 +3,6 @@ package com.valarpirai.sharding.config;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
@@ -184,7 +183,7 @@ class ShardingConfigPropertiesTest {
         assertEquals(6380, boundProperties.getCache().getRedisPort());
 
         assertEquals(1, boundProperties.getShards().size());
-        ShardConfigProperties shard1 = boundProperties.getShards().get("shard1");
+        ShardConfig shard1 = boundProperties.getShards().get("shard1");
         assertNotNull(shard1);
         assertEquals("jdbc:mysql://localhost:3306/shard1", shard1.getMaster().getUrl());
         assertEquals("shard1user", shard1.getMaster().getUsername());

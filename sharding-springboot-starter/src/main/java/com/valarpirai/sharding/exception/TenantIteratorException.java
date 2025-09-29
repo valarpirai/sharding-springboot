@@ -1,4 +1,4 @@
-package com.valarpirai.sharding.iterator;
+package com.valarpirai.sharding.exception;
 
 /**
  * Exception thrown when tenant iteration operations fail.

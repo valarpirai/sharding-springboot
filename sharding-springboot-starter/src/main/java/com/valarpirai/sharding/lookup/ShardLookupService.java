@@ -1,6 +1,7 @@
 package com.valarpirai.sharding.lookup;
 
 import com.valarpirai.sharding.config.ShardingConfigProperties;
+import com.valarpirai.sharding.exception.ShardLookupException;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

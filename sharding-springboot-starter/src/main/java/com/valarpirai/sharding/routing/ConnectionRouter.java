@@ -1,6 +1,7 @@
 package com.valarpirai.sharding.routing;
 
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.exception.RoutingException;
 import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.slf4j.Logger;

@@ -1,8 +1,9 @@
 package com.valarpirai.sharding.lookup;
 
-import com.valarpirai.sharding.config.ShardConfigProperties;
+import com.valarpirai.sharding.config.ShardConfig;
 import com.valarpirai.sharding.config.ShardingConfigProperties;
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.exception.ShardLookupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -89,7 +90,7 @@ public class ShardUtils {
      * @param shardId the shard identifier
      * @return the shard configuration or empty if not found
      */
-    public Optional<ShardConfigProperties> getShardConfig(String shardId) {
+    public Optional<ShardConfig> getShardConfig(String shardId) {
         if (shardId == null) {
             return Optional.empty();
         }
@@ -174,7 +175,7 @@ public class ShardUtils {
         }
 
         String latestShardId = getLatestShard();
-        ShardConfigProperties shardConfig = getShardConfig(latestShardId)
+        ShardConfig shardConfig = getShardConfig(latestShardId)
                 .orElseThrow(() -> new ShardLookupException("Latest shard configuration not found: " + latestShardId));
 
         logger.info("Assigning tenant {} to latest shard: {}", tenantId, latestShardId);
@@ -198,7 +199,7 @@ public class ShardUtils {
             throw new ShardLookupException("Shard is not configured: " + shardId);
         }
 
-        ShardConfigProperties shardConfig = getShardConfig(shardId).orElseThrow();
+        ShardConfig shardConfig = getShardConfig(shardId).orElseThrow();
         logger.info("Assigning tenant {} to shard: {}", tenantId, shardId);
         return shardLookupService.createMapping(tenantId, shardId, shardConfig.getRegion());
     }
@@ -220,7 +221,7 @@ public class ShardUtils {
             throw new ShardLookupException("Target shard is not configured: " + newShardId);
         }
 
-        ShardConfigProperties shardConfig = getShardConfig(newShardId).orElseThrow();
+        ShardConfig shardConfig = getShardConfig(newShardId).orElseThrow();
         logger.info("Moving tenant {} to shard: {}", tenantId, newShardId);
         return shardLookupService.updateMapping(tenantId, newShardId, shardConfig.getRegion(), "ACTIVE");
     }

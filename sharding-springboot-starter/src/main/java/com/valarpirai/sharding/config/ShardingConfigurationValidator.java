@@ -31,7 +31,7 @@ public class ShardingConfigurationValidator implements ApplicationListener<Appli
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
-        logger.info("Starting Galaxy Sharding configuration validation");
+        logger.info("Starting Sharding configuration validation");
 
         try {
             // Validate configuration properties
@@ -40,10 +40,10 @@ public class ShardingConfigurationValidator implements ApplicationListener<Appli
             // Validate entities
             validateEntities();
 
-            logger.info("Galaxy Sharding configuration validation completed successfully");
+            logger.info("Sharding configuration validation completed successfully");
 
         } catch (Exception e) {
-            logger.error("Galaxy Sharding configuration validation failed", e);
+            logger.error("Sharding configuration validation failed", e);
             throw new RuntimeException("Sharding configuration validation failed: " + e.getMessage(), e);
         }
     }
@@ -96,9 +96,9 @@ public class ShardingConfigurationValidator implements ApplicationListener<Appli
         }
 
         int latestShardCount = 0;
-        for (Map.Entry<String, ShardConfigProperties> entry : shardingConfig.getShards().entrySet()) {
+        for (Map.Entry<String, ShardConfig> entry : shardingConfig.getShards().entrySet()) {
             String shardId = entry.getKey();
-            ShardConfigProperties shardConfig = entry.getValue();
+            ShardConfig shardConfig = entry.getValue();
 
             validateShardConfiguration(shardId, shardConfig);
 
@@ -121,7 +121,7 @@ public class ShardingConfigurationValidator implements ApplicationListener<Appli
     /**
      * Validate individual shard configuration.
      */
-    private void validateShardConfiguration(String shardId, ShardConfigProperties shardConfig) {
+    private void validateShardConfiguration(String shardId, ShardConfig shardConfig) {
         // Validate master configuration
         if (shardConfig.getMaster() == null) {
             throw new IllegalArgumentException("Master configuration is required for shard: " + shardId);
@@ -130,9 +130,9 @@ public class ShardingConfigurationValidator implements ApplicationListener<Appli
         validateDatabaseConfig(shardId + ".master", shardConfig.getMaster());
 
         // Validate replica configurations
-        for (Map.Entry<String, DatabaseConfigProperties> replicaEntry : shardConfig.getReplicas().entrySet()) {
+        for (Map.Entry<String, DatabaseConfig> replicaEntry : shardConfig.getReplicas().entrySet()) {
             String replicaName = replicaEntry.getKey();
-            DatabaseConfigProperties replicaConfig = replicaEntry.getValue();
+            DatabaseConfig replicaConfig = replicaEntry.getValue();
             validateDatabaseConfig(shardId + "." + replicaName, replicaConfig);
         }
     }
@@ -140,7 +140,7 @@ public class ShardingConfigurationValidator implements ApplicationListener<Appli
     /**
      * Validate database configuration (master or replica).
      */
-    private void validateDatabaseConfig(String configName, DatabaseConfigProperties dbConfig) {
+    private void validateDatabaseConfig(String configName, DatabaseConfig dbConfig) {
         if (dbConfig.getUrl() == null || dbConfig.getUrl().trim().isEmpty()) {
             throw new IllegalArgumentException("Database URL is required for: " + configName);
         }

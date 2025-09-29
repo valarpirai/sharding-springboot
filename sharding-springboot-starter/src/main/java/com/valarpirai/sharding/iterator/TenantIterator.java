@@ -2,6 +2,7 @@ package com.valarpirai.sharding.iterator;
 
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
+import com.valarpirai.sharding.exception.TenantIteratorException;
 import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import com.valarpirai.sharding.routing.ConnectionRouter;

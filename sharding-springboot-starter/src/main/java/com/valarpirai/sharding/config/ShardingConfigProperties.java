@@ -4,7 +4,6 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,12 +19,9 @@ public class ShardingConfigProperties {
     @NestedConfigurationProperty
     private GlobalDatabaseConfig globalDb = new GlobalDatabaseConfig();
 
-    private Map<String, ShardConfigProperties> shards = new HashMap<>();
+    private Map<String, ShardConfig> shards = new HashMap<>();
 
     private List<String> tenantColumnNames = List.of("tenant_id", "company_id");
-
-    @NestedConfigurationProperty
-    private ValidationConfig validation = new ValidationConfig();
 
     @NestedConfigurationProperty
     private CacheConfig cache = new CacheConfig();
@@ -43,15 +39,6 @@ public class ShardingConfigProperties {
 
         @NestedConfigurationProperty
         private HikariConfigProperties hikari = new HikariConfigProperties();
-
-    }
-
-    /**
-     * Configuration for query validation settings.
-     */
-    @Data
-    public static class ValidationConfig {
-        private StrictnessLevel strictness = StrictnessLevel.STRICT;
 
     }
 
@@ -74,16 +61,6 @@ public class ShardingConfigProperties {
         private String redisPassword;
         private int redisConnectionTimeoutMs = 2000;
 
-    }
-
-    /**
-     * Validation strictness levels.
-     */
-    public enum StrictnessLevel {
-        STRICT,   // Throw exception if tenant_id missing
-        WARN,     // Log warning but allow query
-        LOG,      // Log info message
-        DISABLED  // No validation
     }
 
     /**
