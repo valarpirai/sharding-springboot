@@ -235,7 +235,7 @@ ON CONFLICT (account_id, name) DO UPDATE SET
 -- Insert sample users for account_id = 1
 -- Password hash is for 'password123' using BCrypt
 INSERT INTO users (account_id, email, password_hash, first_name, last_name, role_id, active) VALUES
-    (1, 'admin@demo.com', '$2a$10$7EqJtq98hPqEX7fNZaFWoOYqr5xO9tTmzeCJ8z8nR8tTmzeCJ8z8n', 'Admin', 'User', 1, true),
+    (1, 'admin@demo.com', '$2a$10$xFB/U6gvsSvpNE66JmroN.pfi4P0S/W3g4li8LOWyuQKYOpZeb1yO', 'Admin', 'User', 1, true),
     (1, 'agent@demo.com', '$2a$10$7EqJtq98hPqEX7fNZaFWoOYqr5xO9tTmzeCJ8z8nR8tTmzeCJ8z8n', 'Agent', 'User', 2, true),
     (1, 'andrea@example.com', '$2a$10$7EqJtq98hPqEX7fNZaFWoOYqr5xO9tTmzeCJ8z8nR8tTmzeCJ8z8n', 'Andrea', 'Sample', 3, true)
 ON CONFLICT (account_id, email) DO UPDATE SET

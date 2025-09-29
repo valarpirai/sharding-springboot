@@ -44,7 +44,7 @@ public class ShardingDataSourceAutoConfiguration {
      */
     @Configuration
     @EnableJpaRepositories(
-        basePackages = "#{@dualDataSourceProperties.globalRepositoryBasePackage}",
+        basePackages = "${app.sharding.dual-datasource.global-repository-base-package:**.repository.global}",
         entityManagerFactoryRef = "globalEntityManagerFactory",
         transactionManagerRef = "globalTransactionManager"
     )
@@ -83,7 +83,7 @@ public class ShardingDataSourceAutoConfiguration {
      */
     @Configuration
     @EnableJpaRepositories(
-        basePackages = "#{@dualDataSourceProperties.shardedRepositoryBasePackage}",
+        basePackages = "${app.sharding.dual-datasource.sharded-repository-base-package:**.repository.sharded}",
         entityManagerFactoryRef = "shardedEntityManagerFactory",
         transactionManagerRef = "shardedTransactionManager"
     )

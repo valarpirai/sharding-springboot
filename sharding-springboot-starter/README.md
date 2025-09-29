@@ -4,19 +4,19 @@ A comprehensive Spring Boot auto-configuration library for multi-tenant database
 
 ## Features
 
-🚀 **Auto-Configuration** - Zero-configuration setup with Spring Boot
-🏢 **Multi-Tenancy** - Complete tenant isolation across sharded databases
-📊 **Directory-Based Sharding** - Tenant-to-shard mapping via lookup table
-🔄 **Read/Write Splitting** - Master-replica configuration per shard
-⚡ **Connection Pooling** - Optimized HikariCP configuration with database-specific tuning
-🛡️ **Query Validation** - SQL-level tenant filtering validation with configurable strictness
-🏷️ **Entity Classification** - `@ShardedEntity` annotation for automatic routing
-📋 **Batch Processing** - Tenant iterator for background jobs with parallel support
-🔍 **Monitoring** - JMX metrics and routing statistics
-🛠️ **Developer Experience** - Comprehensive validation and clear error messages
-🗄️ **Multi-Database Support** - Native support for MySQL and PostgreSQL with database-specific optimizations
-⚡ **High-Performance Caching** - In-memory (Caffeine) and distributed (Redis) caching with 1-hour TTL
-🔀 **Dual DataSource Configuration** - Automatic separation of global and sharded entities with configurable package mapping
+- 🚀 **Auto-Configuration** - Zero-configuration setup with Spring Boot
+- 🏢 **Multi-Tenancy** - Complete tenant isolation across sharded databases
+- 📊 **Directory-Based Sharding** - Tenant-to-shard mapping via lookup table
+- 🔄 **Read/Write Splitting** - Master-replica configuration per shard
+- ⚡ **Connection Pooling** - Optimized HikariCP configuration with database-specific tuning
+- 🛡️ **Query Validation** - SQL-level tenant filtering validation with configurable strictness
+- 🏷️ **Entity Classification** - `@ShardedEntity` annotation
+- 📋 **Batch Processing** - Tenant iterator for background jobs with parallel support
+- 🔍 **Monitoring** - JMX metrics and routing statistics
+- 🛠️ **Developer Experience** - Comprehensive validation and clear error messages
+- 🗄️ **Multi-Database Support** - Native support for MySQL and PostgreSQL with database-specific optimizations
+- ⚡ **High-Performance Caching** - In-memory (Caffeine) and distributed (Redis) caching with 1-hour TTL
+- 🔀 **Dual DataSource Configuration** - Automatic separation of global and sharded entities with configurable package mapping
 
 ## Quick Start
 
