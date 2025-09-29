@@ -18,9 +18,9 @@ When working with both global and sharded entities in the same business operatio
        ↓
 DataSourceTransactionManager (primary)
        ↓
-ShardedRoutingDataSource (with dual config)
+RoutingDataSource (with dual config)
        ↓
-ConnectionRouter
+ShardAwareDataSourceDelegate
        ↓
 Correct Shard DataSource
 ```
@@ -117,7 +117,7 @@ public class AccountSignupService {
 1. **@Transactional Triggered**: Spring detects `@Transactional` annotation
 2. **DataSourceTransactionManager**: Uses primary DataSource for transaction management
 3. **Transaction Begin**: Creates transaction on the routing DataSource
-4. **ConnectionRouter**: Determines target shard from tenant context for each operation
+4. **ShardAwareDataSourceDelegate**: Determines target shard from tenant context for each operation
 5. **Entity Package Detection**: Dual DataSource config routes based on entity packages automatically
 6. **Repository Operations**: All operations automatically routed to correct DataSource
 7. **Transaction Commit/Rollback**: Committed/rolled back on the same shard connection

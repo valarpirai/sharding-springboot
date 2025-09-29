@@ -1,18 +1,18 @@
-# Custom ShardLookupService Implementation Guide
+# Custom ITenantShardMappingRepo Implementation Guide
 
 ## 🎯 **Overview**
 
-The Galaxy Sharding library allows you to provide your own custom implementation of the `ShardLookupServiceInterface` to override the default database-backed shard lookup behavior. This enables you to integrate with external systems, implement custom sharding algorithms, or use different data stores for tenant-to-shard mappings.
+The Galaxy Sharding library allows you to provide your own custom implementation of the `ITenantShardMappingRepo` interface to override the default database-backed shard lookup behavior. This enables you to integrate with external systems, implement custom sharding algorithms, or use different data stores for tenant-to-shard mappings.
 
 ## 📋 **Architecture**
 
 ### **Default Implementation**
-- **ShardLookupService**: Database-backed implementation using global database
+- **TenantShardMappingRepository**: Database-backed implementation using global database
 - **Caching**: Built-in caching using Caffeine/Redis
 - **Database Agnostic**: Supports PostgreSQL, MySQL, SQL Server
 
 ### **Custom Implementation**
-- **ShardLookupServiceInterface**: Interface that you implement
+- **ITenantShardMappingRepo**: Interface that you implement
 - **Auto-Configuration**: Automatically detects and uses custom implementations
 - **Spring Integration**: Full integration with dependency injection
 
@@ -23,7 +23,7 @@ The Galaxy Sharding library allows you to provide your own custom implementation
 ```java
 @Service
 @Primary  // Optional: Use if you have multiple implementations
-public class MyCustomShardLookupService implements ShardLookupServiceInterface {
+public class MyCustomShardLookupService implements ITenantShardMappingRepo {
 
     private static final Logger logger = LoggerFactory.getLogger(MyCustomShardLookupService.class);
 
@@ -102,7 +102,7 @@ public class MyShardingConfiguration {
     // Optional: If you need to inject dependencies
     @Bean
     @Primary
-    public ShardLookupServiceInterface customShardLookupService(
+    public ITenantShardMappingRepo customShardLookupService(
             ExternalShardingApiClient apiClient,
             CacheManager cacheManager) {
         return new MyCustomShardLookupService(apiClient, cacheManager);
@@ -115,7 +115,7 @@ public class MyShardingConfiguration {
 If you want to completely disable the default database-backed implementation:
 
 ```properties
-# Disable default ShardLookupService bean creation
+# Disable default TenantShardMappingRepository bean creation
 spring.autoconfigure.exclude=com.valarpirai.sharding.config.ShardingAutoConfiguration
 ```
 
@@ -124,7 +124,7 @@ Or use conditional configuration:
 ```java
 @ConditionalOnProperty(name = "app.sharding.custom-lookup.enabled", havingValue = "true")
 @Service
-public class MyCustomShardLookupService implements ShardLookupServiceInterface {
+public class MyCustomShardLookupService implements ITenantShardMappingRepo {
     // Implementation
 }
 ```
@@ -135,7 +135,7 @@ public class MyCustomShardLookupService implements ShardLookupServiceInterface {
 
 ```java
 @Service
-public class ApiBasedShardLookupService implements ShardLookupServiceInterface {
+public class ApiBasedShardLookupService implements ITenantShardMappingRepo {
 
     private final WebClient shardingApiClient;
     private final CacheManager cacheManager;
@@ -181,7 +181,7 @@ public class ApiBasedShardLookupService implements ShardLookupServiceInterface {
 
 ```java
 @Service
-public class ConfigBasedShardLookupService implements ShardLookupServiceInterface {
+public class ConfigBasedShardLookupService implements ITenantShardMappingRepo {
 
     private final Map<Long, String> tenantToShardMapping;
 
@@ -207,9 +207,9 @@ public class ConfigBasedShardLookupService implements ShardLookupServiceInterfac
 
 ```java
 @Service
-public class HybridShardLookupService implements ShardLookupServiceInterface {
+public class HybridShardLookupService implements ITenantShardMappingRepo {
 
-    private final ShardLookupService defaultService;
+    private final TenantShardMappingRepository defaultService;
     private final ExternalShardingService externalService;
 
     @Override
@@ -230,11 +230,11 @@ public class HybridShardLookupService implements ShardLookupServiceInterface {
 
 ## ⚙️ **Integration Points**
 
-### **Components That Use ShardLookupService**
+### **Components That Use ITenantShardMappingRepo**
 
 All these components automatically receive your custom implementation:
 
-- **ConnectionRouter**: Routes database connections
+- **ShardAwareDataSourceDelegate**: Routes database connections
 - **ShardUtils**: Utility methods for shard operations
 - **TenantIterator**: Batch processing across tenants
 - **ShardSelectorFilter**: HTTP request shard resolution
@@ -245,7 +245,7 @@ Your custom implementation can leverage Spring's caching:
 
 ```java
 @Service
-public class CachedCustomShardLookupService implements ShardLookupServiceInterface {
+public class CachedCustomShardLookupService implements ITenantShardMappingRepo {
 
     @Override
     @Cacheable(value = "tenantShardMappings", key = "#tenantId")
@@ -274,7 +274,7 @@ You can still use sharding configuration properties in your custom implementatio
 
 ```java
 @Service
-public class MyCustomShardLookupService implements ShardLookupServiceInterface {
+public class MyCustomShardLookupService implements ITenantShardMappingRepo {
 
     private final ShardingConfigProperties shardingConfig;
 
@@ -320,12 +320,12 @@ class MyCustomShardLookupServiceTest {
     private ExternalShardingService externalService;
 
     @InjectMocks
-    private MyCustomShardLookupService shardLookupService;
+    private MyCustomShardLookupService tenantShardMappingRepo;
 
     @Test
     void shouldReturnShardMapping() {
         // Test your custom implementation
-        Optional<TenantShardMapping> result = shardLookupService.findShardByTenantId(123L);
+        Optional<TenantShardMapping> result = tenantShardMappingRepo.findShardByTenantId(123L);
         assertThat(result).isPresent();
         assertThat(result.get().getShardId()).isEqualTo("shard1");
     }
@@ -338,7 +338,7 @@ Your custom implementation can integrate with the observability features:
 
 ```java
 @Service
-public class ObservableCustomShardLookupService implements ShardLookupServiceInterface {
+public class ObservableCustomShardLookupService implements ITenantShardMappingRepo {
 
     @Override
     @WithSpan("custom.shard_lookup.find_by_tenant_id")
@@ -360,4 +360,4 @@ public class ObservableCustomShardLookupService implements ShardLookupServiceInt
 }
 ```
 
-By implementing the `ShardLookupServiceInterface`, you have complete control over how tenant-to-shard mappings are resolved while maintaining full integration with the Galaxy Sharding library's features and Spring Boot ecosystem! 🚀
+By implementing the `ITenantShardMappingRepo` interface, you have complete control over how tenant-to-shard mappings are resolved while maintaining full integration with the Galaxy Sharding library's features and Spring Boot ecosystem! 🚀

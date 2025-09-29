@@ -135,7 +135,7 @@ public class AccountSetupService {
 
     private final AccountRepository accountRepository;          // Global entity
     private final UserRepository userRepository;              // Sharded entity
-    private final ShardLookupService shardLookupService;
+    private final ITenantShardMappingRepo tenantShardMappingRepo;
 
     // ❌ Don't use @Transactional for cross-DataSource operations
     public AccountResponse createAccountWithUser(AccountRequest request) {
@@ -419,7 +419,7 @@ public class TenantOnboardingService {
 @RequestMapping("/admin/sharding")
 public class ShardingAdminController {
 
-    private final ConnectionRouter shardAwareDataSourceDelegate;
+    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
     private final ShardUtils shardUtils;
 
     @GetMapping("/stats")
@@ -643,7 +643,7 @@ app.sharding.cache.record-stats=true
 @RestController
 public class CacheController {
 
-    private final ShardLookupService shardLookupService;
+    private final ITenantShardMappingRepo tenantShardMappingRepo;
 
     // Clear all cached mappings
     @PostMapping("/cache/clear")

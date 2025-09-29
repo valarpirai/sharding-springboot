@@ -326,7 +326,7 @@ The system uses a bitmask-based permission system defined in `permissions.yml`:
 
 ### 1. Account Signup Flow
 1. `POST /api/signup` creates account in global database
-2. Maps new account to latest shard using `ShardLookupService`
+2. Maps new account to latest shard using `TenantShardMappingRepository`
 3. Creates admin user and ADMIN role in tenant shard
 4. Triggers background `AccountDemoSetupService` to:
    - Create default roles (ADMIN, AGENT, REQUESTER)

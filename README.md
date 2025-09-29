@@ -46,7 +46,7 @@ java-backend-dev/
 - `TenantInfo` - Immutable tenant data holder
 
 #### 🔍 Shard Lookup (`/lookup/`)
-- `ShardLookupService` - Directory-based tenant-shard mapping
+- `TenantShardMappingRepository` - Directory-based tenant-shard mapping
 - `TenantShardMapping` - Data model for lookup table
 - `ShardUtils` - Comprehensive shard management utilities
 - `DatabaseSqlProvider` - Interface for database-specific SQL operations
@@ -55,9 +55,9 @@ java-backend-dev/
 - `DatabaseSqlProviderFactory` - Automatic database detection and provider selection
 
 #### 🔄 Connection Routing (`/routing/`)
-- `ConnectionRouter` - Routes connections based on tenant context
+- `ShardAwareDataSourceDelegate` - Routes connections based on tenant context
 - `RoutingDataSource` - Spring DataSource integration
-- `ShardedRoutingDataSource` - Enhanced routing DataSource with dual configuration support
+- `RoutingDataSource` - Enhanced routing DataSource with dual configuration support
 - `ShardDataSources` - Master-replica container with load balancing
 
 #### 🛡️ Validation (`/validation/`)
