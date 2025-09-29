@@ -2,7 +2,7 @@ package com.valarpirai.sharding.routing;
 
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.exception.RoutingException;
-import com.valarpirai.sharding.lookup.IShardLookupService;
+import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +22,11 @@ public class ShardAwareDataSourceDelegate {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardAwareDataSourceDelegate.class);
 
-    private final IShardLookupService shardLookupService;
+    private final ITenantShardMappingRepo shardLookupService;
     private final Map<String, ShardDataSources> shardDataSources;
     private final DataSource globalDataSource;
 
-    public ShardAwareDataSourceDelegate(IShardLookupService shardLookupService,
+    public ShardAwareDataSourceDelegate(ITenantShardMappingRepo shardLookupService,
                                         Map<String, ShardDataSources> shardDataSources,
                                         DataSource globalDataSource) {
         this.shardLookupService = shardLookupService;
@@ -103,15 +103,6 @@ public class ShardAwareDataSourceDelegate {
             throw new RoutingException("DataSource configuration not found for shard: " + shardId);
         }
         return selectDataSource(dataSources, readOnly, shardId);
-    }
-
-    /**
-     * Get the global DataSource for non-sharded operations.
-     *
-     * @return the global DataSource
-     */
-    public DataSource getGlobalDataSource() {
-        return globalDataSource;
     }
 
     /**

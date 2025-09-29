@@ -2,7 +2,6 @@ package com.valarpirai.sharding.config;
 
 import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
-import com.valarpirai.sharding.lookup.ShardLookupService;
 import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import com.valarpirai.sharding.validation.EntityValidator;

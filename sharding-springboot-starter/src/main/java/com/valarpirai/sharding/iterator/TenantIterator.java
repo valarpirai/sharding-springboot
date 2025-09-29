@@ -3,7 +3,7 @@ package com.valarpirai.sharding.iterator;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.exception.TenantIteratorException;
-import com.valarpirai.sharding.lookup.IShardLookupService;
+import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
@@ -30,10 +30,10 @@ public class TenantIterator {
     private static final Logger logger = LoggerFactory.getLogger(TenantIterator.class);
     private static final int DEFAULT_BATCH_SIZE = 10;
 
-    private final IShardLookupService shardLookupService;
+    private final ITenantShardMappingRepo shardLookupService;
     private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
-    public TenantIterator(IShardLookupService shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+    public TenantIterator(ITenantShardMappingRepo shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         this.shardLookupService = shardLookupService;
         this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }

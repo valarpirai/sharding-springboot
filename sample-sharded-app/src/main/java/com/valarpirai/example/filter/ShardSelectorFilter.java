@@ -1,11 +1,8 @@
 package com.valarpirai.example.filter;
 
 import com.valarpirai.example.service.AccountValidationService;
+import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.context.TenantInfo;
-import com.valarpirai.sharding.lookup.IShardLookupService;
-import com.valarpirai.sharding.lookup.TenantShardMapping;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -17,9 +14,7 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.sql.DataSource;
 import java.io.IOException;
-import java.util.Optional;
 
 /**
  * Filter to pre-resolve shard information based on tenant (account-id) from request headers.
@@ -29,21 +24,18 @@ import java.util.Optional;
  * to make routing decisions without dynamic shard lookups during query execution.
  */
 @Component
-@Order(0) // Run before TenantValidationFilter (Order 1)
+@Order(0)
 public class ShardSelectorFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardSelectorFilter.class);
 
-    private final IShardLookupService shardLookupService;
+    private final ShardUtils shardUtils;
     private final AccountValidationService accountValidationService;
-    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
-    public ShardSelectorFilter(IShardLookupService shardLookupService,
-                               AccountValidationService accountValidationService,
-                               ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
-        this.shardLookupService = shardLookupService;
+    public ShardSelectorFilter(ShardUtils shardUtils,
+                               AccountValidationService accountValidationService) {
+        this.shardUtils = shardUtils;
         this.accountValidationService = accountValidationService;
-        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     @Override
@@ -79,35 +71,16 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // Resolve shard information for the tenant
-            try {
-                Optional<TenantShardMapping> mappingOpt = shardLookupService.findShardByTenantId(accountId);
-                if (!mappingOpt.isPresent() || !mappingOpt.get().isActive()) {
-                    logger.warn("No active shard mapping found for account: {}", accountId);
-                    TenantFilterUtils.sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
-                            "Tenant shard configuration not found");
-                    return;
-                }
-
-                TenantShardMapping mapping = mappingOpt.get();
-                String shardId = mapping.getShardId();
-                DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(shardId, false);
-
-                // Create TenantInfo with pre-resolved shard information
-                TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false, shardDataSource);
-
-                // Set complete tenant context
-                TenantContext.setTenantInfo(tenantInfo);
-
-                logger.debug("Set shard context - tenant: {}, shard: {} for request: {}",
-                        accountId, shardId, requestDescription);
-
-            } catch (Exception e) {
-                logger.error("Failed to resolve shard for account {}: {}", accountId, e.getMessage(), e);
+            // Resolve shard information for the tenant using ShardUtils
+            boolean resolved = shardUtils.resolveAndSetTenantContext(accountId, false);
+            if (!resolved) {
+                logger.warn("Failed to resolve shard for account: {}", accountId);
                 TenantFilterUtils.sendErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Failed to resolve tenant shard information");
+                        "Tenant shard configuration not found or inactive");
                 return;
             }
+
+            logger.debug("Set shard context for tenant: {} for request: {}", accountId, requestDescription);
 
             // Continue with the request
             filterChain.doFilter(request, response);

@@ -1,7 +1,7 @@
 package com.valarpirai.sharding.routing;
 
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.*;
 class ShardAwareDataSourceDelegateTest {
 
     @Mock
-    private ShardLookupService shardLookupService;
+    private TenantShardMappingRepository shardLookupService;
 
     @Mock
     private DataSource globalDataSource;

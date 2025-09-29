@@ -2,8 +2,8 @@ package com.valarpirai.sharding.config;
 
 import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
-import com.valarpirai.sharding.lookup.ShardLookupService;
-import com.valarpirai.sharding.lookup.IShardLookupService;
+import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
+import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import com.valarpirai.sharding.routing.RoutingDataSource;
@@ -97,14 +97,14 @@ public class ShardingAutoConfiguration {
     }
 
     /**
-     * Default shard lookup service for tenant-shard mapping operations.
-     * Only created if no custom ShardLookupServiceInterface implementation is provided.
+     * Default tenant-shard repository for mapping operations.
+     * Only created if no custom IShardLookupService implementation is provided.
      */
     @Bean
-    @ConditionalOnMissingBean(IShardLookupService.class)
-    public IShardLookupService shardLookupService(JdbcTemplate globalJdbcTemplate,
-                                                  DatabaseSqlProviderFactory sqlProviderFactory) {
-        return new ShardLookupService(globalJdbcTemplate, shardingConfig, sqlProviderFactory);
+    @ConditionalOnMissingBean(ITenantShardMappingRepo.class)
+    public ITenantShardMappingRepo shardLookupService(JdbcTemplate globalJdbcTemplate,
+                                                      DatabaseSqlProviderFactory sqlProviderFactory) {
+        return new TenantShardMappingRepository(globalJdbcTemplate, shardingConfig, sqlProviderFactory);
     }
 
     /**
@@ -112,8 +112,9 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ShardUtils shardUtils(IShardLookupService shardLookupService) {
-        return new ShardUtils(shardLookupService, shardingConfig);
+    public ShardUtils shardUtils(ITenantShardMappingRepo shardLookupService,
+                                 ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+        return new ShardUtils(shardLookupService, shardingConfig, shardAwareDataSourceDelegate);
     }
 
     /**
@@ -121,7 +122,7 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public TenantIterator tenantIterator(IShardLookupService shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+    public TenantIterator tenantIterator(ITenantShardMappingRepo shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         return new TenantIterator(shardLookupService, shardAwareDataSourceDelegate);
     }
 
@@ -174,7 +175,7 @@ public class ShardingAutoConfiguration {
     @ConditionalOnMissingBean
     public ShardAwareDataSourceDelegate shardAwareDataSourceDelegate(Map<String, ShardDataSources> shardDataSources,
                                                          DataSource globalDataSource,
-                                                         IShardLookupService shardLookupService) {
+                                                         ITenantShardMappingRepo shardLookupService) {
         return new ShardAwareDataSourceDelegate(shardLookupService, shardDataSources, globalDataSource);
     }
 

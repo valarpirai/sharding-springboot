@@ -22,14 +22,19 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Default implementation of ShardLookupServiceInterface.
- * Provides database-backed shard lookup with caching and error handling.
- * Custom implementations can be provided by implementing ShardLookupServiceInterface.
+ * Repository for managing tenant-shard mappings with database persistence and caching.
+ * Provides comprehensive CRUD operations for tenant-shard mapping management including:
+ * - Query/lookup operations with caching
+ * - Create/update mapping operations
+ * - Cache management and optimization
+ * - Database table lifecycle management
+ *
+ * Custom implementations can be provided by implementing IShardLookupService.
  */
 @Service
-public class ShardLookupService implements IShardLookupService {
+public class TenantShardMappingRepository implements ITenantShardMappingRepo {
 
-    private static final Logger logger = LoggerFactory.getLogger(ShardLookupService.class);
+    private static final Logger logger = LoggerFactory.getLogger(TenantShardMappingRepository.class);
 
     private static final String SELECT_BY_TENANT_SQL =
             "SELECT tenant_id, shard_id, region, shard_status, created_at FROM tenant_shard_mapping WHERE tenant_id = ?";
@@ -50,9 +55,9 @@ public class ShardLookupService implements IShardLookupService {
 
     // OpenTelemetry tracing via @WithSpan annotations only
 
-    public ShardLookupService(JdbcTemplate globalJdbcTemplate,
-                             ShardingConfigProperties shardingConfig,
-                             DatabaseSqlProviderFactory sqlProviderFactory) {
+    public TenantShardMappingRepository(JdbcTemplate globalJdbcTemplate,
+                                        ShardingConfigProperties shardingConfig,
+                                        DatabaseSqlProviderFactory sqlProviderFactory) {
         this.globalJdbcTemplate = globalJdbcTemplate;
         this.shardingConfig = shardingConfig;
         this.sqlProvider = determineSqlProvider(globalJdbcTemplate.getDataSource(), sqlProviderFactory);

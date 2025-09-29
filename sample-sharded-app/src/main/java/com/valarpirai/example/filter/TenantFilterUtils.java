@@ -14,7 +14,6 @@ import java.util.List;
 /**
  * Utility class containing shared logic for tenant-related filters.
  * Centralizes common validation, error handling, and path exclusion logic
- * to eliminate code duplication between ShardSelectorFilter and TenantValidationFilter.
  */
 @Component
 public class TenantFilterUtils {

@@ -336,7 +336,6 @@ The system uses a bitmask-based permission system defined in `permissions.yml`:
 
 ### 2. Request Flow
 1. Client sends request with `account-id` header
-2. `TenantValidationFilter` validates tenant and sets `TenantContext`
 3. Sharding library routes queries to appropriate shard
 4. Business logic operates on tenant-isolated data
 5. Response returned, context cleared

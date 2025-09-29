@@ -10,10 +10,7 @@ import com.valarpirai.example.repository.sharded.RoleRepository;
 import com.valarpirai.example.repository.sharded.UserRepository;
 import com.valarpirai.example.security.PermissionMasks;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.context.TenantInfo;
-import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.ShardUtils;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,28 +27,22 @@ public class AccountSignupService {
     private final AccountRepository accountRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
-    private final IShardLookupService shardLookupService;
     private final ShardUtils shardUtils;
     private final PasswordEncoder passwordEncoder;
     private final AccountDemoSetupService demoSetupService;
-    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
     public AccountSignupService(AccountRepository accountRepository,
                               RoleRepository roleRepository,
                               UserRepository userRepository,
-                              IShardLookupService shardLookupService,
                               ShardUtils shardUtils,
                               PasswordEncoder passwordEncoder,
-                              AccountDemoSetupService demoSetupService,
-                              ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+                              AccountDemoSetupService demoSetupService) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
-        this.shardLookupService = shardLookupService;
         this.shardUtils = shardUtils;
         this.passwordEncoder = passwordEncoder;
         this.demoSetupService = demoSetupService;
-        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     /**
@@ -74,15 +65,16 @@ public class AccountSignupService {
         logger.info("Created account with ID: {}", account.getId());
 
         // 2. Get latest shard and create tenant-shard mapping
-        String latestShardId = shardUtils.getLatestShard();
-        shardLookupService.createMapping(account.getId(), latestShardId, "us-east-1");
-        logger.info("Mapped account {} to latest shard: {}", account.getId(), latestShardId);
+        shardUtils.assignTenantToLatestShard(account.getId());
+        logger.info("Mapped account {} to latest shard", account.getId());
 
         // 3. Set complete tenant context with pre-resolved shard for subsequent operations
-        javax.sql.DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(latestShardId, false);
-        TenantInfo tenantInfo = new TenantInfo(account.getId(), latestShardId, false, shardDataSource);
-        TenantContext.setTenantInfo(tenantInfo);
-        logger.debug("Set signup context - tenant: {}, shard: {}", account.getId(), latestShardId);
+        boolean resolved = shardUtils.resolveAndSetTenantContext(account.getId(), false);
+        if (!resolved) {
+            logger.error("Failed to resolve shard context after mapping creation for account: {}", account.getId());
+            throw new IllegalStateException("Failed to set tenant context after signup");
+        }
+        logger.debug("Set signup context for tenant: {}", account.getId());
 
         try {
             // 4. Create ADMIN role first (needed for admin user)

@@ -3,7 +3,7 @@ package com.valarpirai.sharding.integration;
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.config.ShardingAutoConfiguration;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.lookup.ShardLookupService;
+import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
 import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.junit.jupiter.api.AfterEach;
@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ShardingIntegrationTest {
 
     @Autowired
-    private ShardLookupService shardLookupService;
+    private TenantShardMappingRepository shardLookupService;
 
     @Autowired
     private ShardUtils shardUtils;
@@ -157,7 +157,7 @@ class ShardingIntegrationTest {
         // Test getting shard statistics
         ShardUtils.ShardStatistics stats = shardUtils.getShardStatistics();
         assertNotNull(stats);
-        assertTrue(stats.getTotalTenants() > 0);
+        assertTrue(stats.totalTenants() > 0);
         assertTrue(stats.getShardDistribution().size() > 0);
     }
 
@@ -222,7 +222,7 @@ class ShardingIntegrationTest {
 
         // Test shard distribution
         ShardUtils.ShardStatistics stats = shardUtils.getShardStatistics();
-        assertTrue(stats.getTotalTenants() >= 10);
+        assertTrue(stats.totalTenants() >= 10);
         assertTrue(stats.getShardDistribution().containsKey("shard1"));
         assertTrue(stats.getShardDistribution().containsKey("shard2"));
     }

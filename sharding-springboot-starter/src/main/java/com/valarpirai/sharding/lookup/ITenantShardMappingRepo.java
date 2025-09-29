@@ -7,7 +7,7 @@ import java.util.Optional;
  * Interface for shard lookup operations.
  * Custom implementations can be provided to override the default behavior.
  */
-public interface IShardLookupService {
+public interface ITenantShardMappingRepo {
 
     /**
      * Find the shard for a given tenant ID.

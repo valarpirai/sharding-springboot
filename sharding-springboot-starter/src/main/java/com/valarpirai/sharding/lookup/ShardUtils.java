@@ -3,11 +3,14 @@ package com.valarpirai.sharding.lookup;
 import com.valarpirai.sharding.config.ShardConfig;
 import com.valarpirai.sharding.config.ShardingConfigProperties;
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.exception.ShardLookupException;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,20 +18,31 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Utility class for shard-related operations and lookups.
- * Provides convenience methods for shard management and tenant routing.
+ * Comprehensive utility class for shard-related operations and tenant resolution.
+ * Provides convenience methods for shard management, tenant routing, and complete
+ * shard context resolution with DataSource injection.
+ *
+ * Key capabilities:
+ * - Shard configuration management and lookup
+ * - Tenant-to-shard mapping operations
+ * - Complete TenantInfo resolution with pre-resolved DataSources
+ * - TenantContext management for filters and services
+ * - Statistics and distribution analytics
  */
 @Component
 public class ShardUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardUtils.class);
 
-    private final IShardLookupService shardLookupService;
+    private final ITenantShardMappingRepo shardLookupService;
     private final ShardingConfigProperties shardingConfig;
+    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
-    public ShardUtils(IShardLookupService shardLookupService, ShardingConfigProperties shardingConfig) {
+    public ShardUtils(ITenantShardMappingRepo shardLookupService, ShardingConfigProperties shardingConfig,
+                      ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         this.shardLookupService = shardLookupService;
         this.shardingConfig = shardingConfig;
+        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     /**
@@ -212,6 +226,7 @@ public class ShardUtils {
      * @return true if moved successfully
      * @throws ShardLookupException if move fails
      */
+    @Deprecated
     public boolean moveTenantToShard(Long tenantId, String newShardId) {
         if (tenantId == null || newShardId == null) {
             throw new IllegalArgumentException("Tenant ID and shard ID cannot be null");
@@ -236,6 +251,70 @@ public class ShardUtils {
         return tenantId != null && getTenantMapping(tenantId).isPresent();
     }
 
+    // === Shard Resolution Methods (from ShardResolutionService) ===
+
+    /**
+     * Resolve complete shard information for a tenant and create TenantInfo.
+     *
+     * @param tenantId the tenant identifier
+     * @param readOnly whether to use read-only replica (false = master)
+     * @return TenantInfo with complete shard context, or empty if not found/inactive
+     */
+    public Optional<TenantInfo> resolveTenantInfo(Long tenantId, boolean readOnly) {
+        if (tenantId == null) {
+            logger.debug("Cannot resolve shard info for null tenant ID");
+            return Optional.empty();
+        }
+
+        try {
+            // Look up shard mapping
+            Optional<TenantShardMapping> mappingOpt = shardLookupService.findShardByTenantId(tenantId);
+            if (!mappingOpt.isPresent() || !mappingOpt.get().isActive()) {
+                logger.warn("No active shard mapping found for tenant: {}", tenantId);
+                return Optional.empty();
+            }
+
+            TenantShardMapping mapping = mappingOpt.get();
+            String shardId = mapping.getShardId();
+
+            // Resolve shard DataSource
+            DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(shardId, readOnly);
+
+            // Create complete TenantInfo
+            TenantInfo tenantInfo = new TenantInfo(tenantId, shardId, readOnly, shardDataSource);
+
+            logger.debug("Resolved tenant info - tenant: {}, shard: {}, readOnly: {}",
+                        tenantId, shardId, readOnly);
+
+            return Optional.of(tenantInfo);
+
+        } catch (Exception e) {
+            logger.error("Failed to resolve shard info for tenant {}: {}", tenantId, e.getMessage(), e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Resolve shard information and set it in TenantContext.
+     * This is a convenience method for filters and controllers.
+     *
+     * @param tenantId the tenant identifier
+     * @param readOnly whether to use read-only replica
+     * @return true if successfully resolved and set, false otherwise
+     */
+    public boolean resolveAndSetTenantContext(Long tenantId, boolean readOnly) {
+        Optional<TenantInfo> tenantInfoOpt = resolveTenantInfo(tenantId, readOnly);
+
+        if (tenantInfoOpt.isPresent()) {
+            TenantContext.setTenantInfo(tenantInfoOpt.get());
+            logger.debug("Set tenant context - tenant: {}, shard: {}",
+                        tenantId, tenantInfoOpt.get().shardId());
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Get shard statistics.
      *
@@ -254,14 +333,9 @@ public class ShardUtils {
     }
 
     /**
-     * Statistics summary for shards.
-     */
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    public static class ShardStatistics {
-        private final int totalShards;
-        private final int activeShards;
-        private final int totalTenants;
-        private final Map<String, Long> tenantDistribution;
+    * Statistics summary for shards.
+    */
+    public record ShardStatistics(int totalShards, int activeShards, int totalTenants,
+                              Map<String, Long> tenantDistribution) {
     }
 }
