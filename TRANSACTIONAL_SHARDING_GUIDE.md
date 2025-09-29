@@ -10,14 +10,20 @@ Our sharding library now provides **automatic transaction routing** that seamles
 ```
 @Transactional Method
        ↓
-RoutingTransactionManager (NEW!)
+DataSourceTransactionManager (primary)
        ↓
-DataSourceTransactionManager (per shard)
+ShardedRoutingDataSource (with dual config)
        ↓
-RoutingDataSource + RepositoryShardingAspect
+ConnectionRouter
        ↓
 Correct Shard DataSource
 ```
+
+**Key Changes in Latest Version:**
+- ✅ **Simplified Architecture**: Removed RoutingTransactionManager (redundant with dual DataSource)
+- ✅ **No AOP Overhead**: Removed RepositoryShardingAspect for better performance
+- ✅ **Dual DataSource**: Automatic routing based on entity packages
+- ✅ **Lombok Integration**: Reduced boilerplate in configuration classes
 
 ## 🔄 **Complete Transaction Flow**
 
@@ -46,10 +52,12 @@ public class UserService {
 ### **2. Step-by-Step Transaction Flow**
 
 1. **@Transactional Triggered**: Spring detects `@Transactional` annotation
-2. **RoutingTransactionManager**: Determines target shard from tenant context
-3. **Transaction Begin**: Creates transaction on correct shard's DataSourceTransactionManager
-4. **Repository Operations**: RepositoryShardingAspect ensures all operations use same shard
-5. **Transaction Commit/Rollback**: Committed/rolled back on the same shard
+2. **DataSourceTransactionManager**: Uses primary DataSource for transaction management
+3. **Transaction Begin**: Creates transaction on the routing DataSource
+4. **ConnectionRouter**: Determines target shard from tenant context for each operation
+5. **Entity Package Detection**: Dual DataSource config routes based on entity packages automatically
+6. **Repository Operations**: All operations automatically routed to correct DataSource
+7. **Transaction Commit/Rollback**: Committed/rolled back on the same shard connection
 
 ### **3. Shard Selection Logic**
 

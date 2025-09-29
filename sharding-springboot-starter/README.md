@@ -16,6 +16,7 @@ A comprehensive Spring Boot auto-configuration library for multi-tenant database
 🛠️ **Developer Experience** - Comprehensive validation and clear error messages
 🗄️ **Multi-Database Support** - Native support for MySQL and PostgreSQL with database-specific optimizations
 ⚡ **High-Performance Caching** - In-memory (Caffeine) and distributed (Redis) caching with 1-hour TTL
+🔀 **Dual DataSource Configuration** - Automatic separation of global and sharded entities with configurable package mapping
 
 ## Quick Start
 
@@ -67,6 +68,13 @@ app.sharding.validation.strictness=STRICT
 app.sharding.cache.enabled=true
 app.sharding.cache.type=CAFFEINE
 app.sharding.cache.ttl-hours=1
+
+# Dual DataSource Configuration (optional - separates global and sharded entities)
+app.sharding.dual-datasource.enabled=true
+app.sharding.dual-datasource.global-repository-base-package=**.repository.global
+app.sharding.dual-datasource.sharded-repository-base-package=**.repository.sharded
+app.sharding.dual-datasource.global-entity-base-package=**.entity.global
+app.sharding.dual-datasource.sharded-entity-base-package=**.entity.sharded
 ```
 
 **PostgreSQL Configuration:**
@@ -101,6 +109,13 @@ app.sharding.cache.type=REDIS
 app.sharding.cache.ttl-hours=1
 app.sharding.cache.redis-host=localhost
 app.sharding.cache.redis-port=6379
+
+# Dual DataSource Configuration (optional - separates global and sharded entities)
+app.sharding.dual-datasource.enabled=true
+app.sharding.dual-datasource.global-repository-base-package=**.repository.global
+app.sharding.dual-datasource.sharded-repository-base-package=**.repository.sharded
+app.sharding.dual-datasource.global-entity-base-package=**.entity.global
+app.sharding.dual-datasource.sharded-entity-base-package=**.entity.sharded
 ```
 
 ### 3. Annotate Your Entities
@@ -296,6 +311,22 @@ The library applies optimal defaults and database-specific optimizations:
 | `app.sharding.cache.ttl-hours` | Integer | Cache entry time-to-live in hours |
 | `app.sharding.cache.max-size` | Integer | Maximum cache size (Caffeine only) |
 | `app.sharding.cache.record-stats` | `true`, `false` | Enable cache statistics collection |
+
+### Dual DataSource Configuration
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `app.sharding.dual-datasource.enabled` | `true` | Enable/disable dual DataSource setup |
+| `app.sharding.dual-datasource.global-repository-base-package` | `**.repository.global` | Base package pattern for global repositories |
+| `app.sharding.dual-datasource.sharded-repository-base-package` | `**.repository.sharded` | Base package pattern for sharded repositories |
+| `app.sharding.dual-datasource.global-entity-base-package` | `**.entity.global` | Base package pattern for global entities |
+| `app.sharding.dual-datasource.sharded-entity-base-package` | `**.entity.sharded` | Base package pattern for sharded entities |
+
+**Dual DataSource Benefits:**
+- 🎯 **Automatic Routing**: Global entities use global DataSource, sharded entities use routing DataSource
+- 📦 **Package-Based Configuration**: Separate packages for different entity types
+- ⚡ **Performance**: Eliminates unnecessary routing for global entities
+- 🔧 **Flexibility**: Configurable package patterns to match your project structure
 
 **Redis-Specific Configuration:**
 

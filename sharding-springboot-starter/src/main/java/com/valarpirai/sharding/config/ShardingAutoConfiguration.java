@@ -1,6 +1,5 @@
 package com.valarpirai.sharding.config;
 
-import com.valarpirai.sharding.aspect.RepositoryShardingAspect;
 import com.valarpirai.sharding.cache.CacheStatisticsService;
 import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
@@ -22,7 +21,6 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -41,9 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Configuration
 @EnableConfigurationProperties(ShardingConfigProperties.class)
 @Import({CacheConfiguration.class,
-         DualDataSourceAutoConfiguration.class,
+         ShardingDataSourceAutoConfiguration.class,
          com.valarpirai.sharding.observability.OpenTelemetryConfiguration.class})
-@EnableAspectJAutoProxy
 public class ShardingAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardingAutoConfiguration.class);
@@ -204,18 +201,6 @@ public class ShardingAutoConfiguration {
         return new CacheStatisticsService(cacheManager, shardingConfig);
     }
 
-    /**
-     * Repository sharding aspect for entity-based routing.
-     * Routes repository operations based on @ShardedEntity annotation:
-     * - Sharded entities → use shard DataSource from TenantContext
-     * - Non-sharded entities → use global DataSource
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public RepositoryShardingAspect repositoryShardingAspect() {
-        logger.info("Creating RepositoryShardingAspect for entity-based DataSource routing");
-        return new RepositoryShardingAspect();
-    }
 
     /**
      * Primary DataSource with routing and validation capabilities.

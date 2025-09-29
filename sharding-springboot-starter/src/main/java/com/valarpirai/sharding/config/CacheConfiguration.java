@@ -61,15 +61,14 @@ public class CacheConfiguration {
             return new NoOpCacheManager();
         }
 
-        switch (cacheConfig.getType()) {
-            case CAFFEINE:
-                return caffeineCacheManager(cacheConfig);
-            case REDIS:
-                return redisCacheManager(cacheConfig);
-            default:
+        return switch (cacheConfig.getType()) {
+            case CAFFEINE -> caffeineCacheManager(cacheConfig);
+            case REDIS -> redisCacheManager(cacheConfig);
+            default -> {
                 logger.warn("Unknown cache type: {}, falling back to Caffeine", cacheConfig.getType());
-                return caffeineCacheManager(cacheConfig);
-        }
+                yield caffeineCacheManager(cacheConfig);
+            }
+        };
     }
 
     /**

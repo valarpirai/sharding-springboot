@@ -29,6 +29,7 @@ java-backend-dev/
 ✅ **Batch Processing** - Tenant iterator for background jobs
 ✅ **Monitoring** - JMX metrics and routing statistics
 ✅ **Multi-Database Support** - Native MySQL and PostgreSQL support with database-specific optimizations
+✅ **Dual DataSource Configuration** - Automatic separation of global and sharded entities with package-based routing
 
 ### Architecture Components
 
@@ -36,6 +37,8 @@ java-backend-dev/
 - `ShardingConfigProperties` - Main configuration with flat structure
 - `HikariConfigProperties` - Comprehensive HikariCP settings
 - `ShardingAutoConfiguration` - Spring Boot auto-configuration
+- `ShardingDataSourceAutoConfiguration` - Dual DataSource auto-configuration with Lombok-based properties
+- `DualDataSourceProperties` - Package-based routing configuration (Lombok)
 - `HikariConfigUtil` - Optimal defaults and database-specific optimizations
 
 #### 🎯 Context Management (`/context/`)
@@ -54,6 +57,7 @@ java-backend-dev/
 #### 🔄 Connection Routing (`/routing/`)
 - `ConnectionRouter` - Routes connections based on tenant context
 - `RoutingDataSource` - Spring DataSource integration
+- `ShardedRoutingDataSource` - Enhanced routing DataSource with dual configuration support
 - `ShardDataSources` - Master-replica container with load balancing
 
 #### 🛡️ Validation (`/validation/`)

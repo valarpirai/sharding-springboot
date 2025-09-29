@@ -1,10 +1,12 @@
 package com.valarpirai.sharding.config;
 
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Configuration properties for dual DataSource setup package organization.
  */
+@Data
 @ConfigurationProperties(prefix = "app.sharding.dual-datasource")
 public class DualDataSourceProperties {
 
@@ -32,44 +34,4 @@ public class DualDataSourceProperties {
      * Whether dual DataSource configuration is enabled.
      */
     private boolean enabled = true;
-
-    public String getGlobalRepositoryBasePackage() {
-        return globalRepositoryBasePackage;
-    }
-
-    public void setGlobalRepositoryBasePackage(String globalRepositoryBasePackage) {
-        this.globalRepositoryBasePackage = globalRepositoryBasePackage;
-    }
-
-    public String getShardedRepositoryBasePackage() {
-        return shardedRepositoryBasePackage;
-    }
-
-    public void setShardedRepositoryBasePackage(String shardedRepositoryBasePackage) {
-        this.shardedRepositoryBasePackage = shardedRepositoryBasePackage;
-    }
-
-    public String getGlobalEntityBasePackage() {
-        return globalEntityBasePackage;
-    }
-
-    public void setGlobalEntityBasePackage(String globalEntityBasePackage) {
-        this.globalEntityBasePackage = globalEntityBasePackage;
-    }
-
-    public String getShardedEntityBasePackage() {
-        return shardedEntityBasePackage;
-    }
-
-    public void setShardedEntityBasePackage(String shardedEntityBasePackage) {
-        this.shardedEntityBasePackage = shardedEntityBasePackage;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
 }

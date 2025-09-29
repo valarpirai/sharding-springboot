@@ -1,6 +1,5 @@
 package com.valarpirai.sharding.config;
 
-import com.valarpirai.sharding.aspect.RepositoryShardingAspect;
 import com.valarpirai.sharding.routing.ShardedRoutingDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,20 +19,20 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 
 /**
- * Auto-configuration for dual DataSource setup:
+ * Auto-configuration for sharding DataSource setup:
  * - Global DataSource for non-sharded entities
  * - Sharded DataSource that routes based on TenantContext
  */
 @Configuration
 @ConditionalOnProperty(prefix = "app.sharding.dual-datasource", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(DualDataSourceProperties.class)
-public class DualDataSourceAutoConfiguration {
+public class ShardingDataSourceAutoConfiguration {
 
-    private static final Logger logger = LoggerFactory.getLogger(DualDataSourceAutoConfiguration.class);
+    private static final Logger logger = LoggerFactory.getLogger(ShardingDataSourceAutoConfiguration.class);
 
     private final DualDataSourceProperties properties;
 
-    public DualDataSourceAutoConfiguration(DualDataSourceProperties properties) {
+    public ShardingDataSourceAutoConfiguration(DualDataSourceProperties properties) {
         this.properties = properties;
         logger.info("Dual DataSource auto-configuration enabled with packages - Global: {}, Sharded: {}",
                 properties.getGlobalRepositoryBasePackage(), properties.getShardedRepositoryBasePackage());
@@ -125,14 +124,4 @@ public class DualDataSourceAutoConfiguration {
         }
     }
 
-    /**
-     * Disabled RepositoryShardingAspect to prevent auto-configuration.
-     * We use dual DataSource approach instead of AOP routing.
-     */
-    @Bean
-    public RepositoryShardingAspect repositoryShardingAspect() {
-        return new RepositoryShardingAspect() {
-            // Disabled - dual DataSource approach handles routing now
-        };
-    }
 }

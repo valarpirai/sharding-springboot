@@ -1,7 +1,6 @@
 package com.valarpirai.sharding.routing;
 
 import com.valarpirai.sharding.annotation.ShardedEntity;
-import com.valarpirai.sharding.aspect.RepositoryShardingAspect;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.observability.OpenTelemetryConfiguration;
@@ -31,9 +30,6 @@ public class RoutingDataSource extends AbstractDataSource {
 
     private final ConnectionRouter connectionRouter;
 
-    // RepositoryShardingAspect - optional dependency for entity-based routing
-    @Autowired(required = false)
-    private RepositoryShardingAspect repositoryShardingAspect;
 
     // OpenTelemetry components - optional dependencies
     @Autowired(required = false)
@@ -122,17 +118,6 @@ public class RoutingDataSource extends AbstractDataSource {
     @WithSpan("sharding.datasource.determine_target")
     protected DataSource determineTargetDataSource() throws SQLException {
         try {
-            // Check if RepositoryShardingAspect is forcing global DataSource
-            boolean forceGlobal = repositoryShardingAspect != null &&
-                                repositoryShardingAspect.shouldUseGlobalDataSource();
-
-            logger.info("=== ROUTING DATASOURCE === RepositoryShardingAspect routing decision: forceGlobal={}, aspectAvailable={}",
-                       forceGlobal, repositoryShardingAspect != null);
-
-            if (repositoryShardingAspect != null) {
-                logger.info("RepositoryShardingAspect.shouldUseGlobalDataSource() = {}", repositoryShardingAspect.shouldUseGlobalDataSource());
-            }
-
             // Check if we have pre-resolved shard information in TenantContext
             TenantInfo tenantInfo = TenantContext.getTenantInfo();
 
@@ -141,15 +126,8 @@ public class RoutingDataSource extends AbstractDataSource {
                 boolean readOnly = TenantContext.isReadOnlyMode();
                 String shardId = tenantInfo != null ? tenantInfo.shardId() : "none";
                 boolean hasPreResolvedShard = tenantInfo != null && tenantInfo.shardDataSource() != null;
-                logger.debug("Routing connection - tenant: {}, readOnly: {}, shard: {}, preResolved: {}, forceGlobal: {}",
-                           tenantId, readOnly, shardId, hasPreResolvedShard, forceGlobal);
-            }
-
-            if (forceGlobal) {
-                logger.info("DATASOURCE DECISION: Using global DataSource (forced by RepositoryShardingAspect)");
-                DataSource result = connectionRouter.routeDataSource(false);
-                logger.info("GLOBAL DATASOURCE: {}", result.getClass().getSimpleName());
-                return result;
+                logger.debug("Routing connection - tenant: {}, readOnly: {}, shard: {}, preResolved: {}",
+                           tenantId, readOnly, shardId, hasPreResolvedShard);
             }
 
             // Use pre-resolved shard information if available

@@ -23,14 +23,34 @@ A comprehensive Spring Boot application demonstrating database sharding and mult
 
 ### Key Entities
 
-#### Global Entities (stored in global_db)
-- **Account**: Tenant information (id, name, admin_email, created_at)
+#### Global Entities (package: `com.valarpirai.example.entity.global`)
+- **Account**: Tenant information (id, name, admin_email, created_at) - stored in global_db
+- **GlobalConfig**: Global configuration settings - stored in global_db
+- **Priority**: Ticket priorities - shared across tenants, stored in global_db
 
-#### Sharded Entities (stored per tenant shard)
-- **User**: Tenant users with roles (account_id, email, password, role_id, active)
-- **Ticket**: Support tickets (account_id, subject, description, requester_id, responder_id, status_id, priority)
-- **Role**: User roles with permissions (account_id, name, permissions_mask, is_system_role)
-- **Status**: Ticket statuses (account_id, name, color, position, is_default)
+#### Sharded Entities (package: `com.valarpirai.example.entity.sharded`)
+- **User**: Tenant users with roles (account_id, email, password, role_id, active) - stored per tenant shard
+- **Ticket**: Support tickets (account_id, subject, description, requester_id, responder_id, status_id, priority) - stored per tenant shard
+- **Role**: User roles with permissions (account_id, name, permissions_mask, is_system_role) - stored per tenant shard
+- **Status**: Ticket statuses (account_id, name, color, position, is_default) - stored per tenant shard
+
+**Entity Routing**:
+- Global entities use `globalDataSource` directly
+- Sharded entities use `primaryDataSource` with automatic tenant routing
+- Package-based configuration in `application.properties` determines routing behavior
+
+### Repository Structure
+
+#### Global Repositories (package: `com.valarpirai.example.repository.global`)
+- **AccountRepository**: CRUD operations for tenant accounts - uses `globalDataSource`
+- **GlobalConfigRepository**: Global configuration management - uses `globalDataSource`
+- **PriorityRepository**: Shared priority management - uses `globalDataSource`
+
+#### Sharded Repositories (package: `com.valarpirai.example.repository.sharded`)
+- **UserRepository**: Tenant-specific user management - uses `primaryDataSource` with routing
+- **TicketRepository**: Tenant-specific ticket management - uses `primaryDataSource` with routing
+- **RoleRepository**: Tenant-specific role management - uses `primaryDataSource` with routing
+- **StatusRepository**: Tenant-specific status management - uses `primaryDataSource` with routing
 
 ## API Endpoints
 
@@ -204,15 +224,24 @@ statuses (id, account_id, name, color, position, is_default, created_at, updated
 
 ### Application Properties
 ```properties
-# Database Configuration
-spring.datasource.url=jdbc:postgresql://localhost:5432/global_db
-spring.datasource.username=postgres
-spring.datasource.password=
+# Disable default auto-configuration (handled by sharding library)
+spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 
 # Sharding Configuration (handled by sharding library)
 app.sharding.global-db.url=jdbc:postgresql://localhost:5432/global_db
 app.sharding.shards.shard1.master.url=jdbc:postgresql://localhost:5432/shard1_db
 app.sharding.shards.shard1.latest=true
+
+# Dual DataSource Configuration (package-based routing)
+app.sharding.dual-datasource.enabled=true
+app.sharding.dual-datasource.global-repository-base-package=com.valarpirai.example.repository.global
+app.sharding.dual-datasource.sharded-repository-base-package=com.valarpirai.example.repository.sharded
+app.sharding.dual-datasource.global-entity-base-package=com.valarpirai.example.entity.global
+app.sharding.dual-datasource.sharded-entity-base-package=com.valarpirai.example.entity.sharded
+
+# Tenant Configuration
+app.sharding.tenant-column-names=tenant_id,company_id
+app.sharding.validation.strictness=STRICT
 
 # JWT Configuration
 app.jwt.secret=mySecretKey123456789012345678901234567890
