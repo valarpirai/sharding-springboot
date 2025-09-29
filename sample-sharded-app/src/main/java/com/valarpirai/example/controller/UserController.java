@@ -3,7 +3,7 @@ package com.valarpirai.example.controller;
 import com.valarpirai.example.dto.UserCreateRequest;
 import com.valarpirai.example.dto.UserResponse;
 import com.valarpirai.example.dto.UserUpdateRequest;
-import com.valarpirai.example.entity.User;
+import com.valarpirai.example.entity.sharded.User;
 import com.valarpirai.example.service.UserService;
 import com.valarpirai.sharding.context.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;

@@ -1,5 +1,6 @@
-package com.valarpirai.example.entity;
+package com.valarpirai.example.entity.sharded;
 
+import com.valarpirai.example.security.Permission;
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,17 +11,17 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * Status entity - sharded by account_id.
- * Represents ticket status definitions for each tenant.
+ * Role entity - sharded by account_id.
+ * Represents user roles with permission bitmasks.
  */
 @Entity
-@Table(name = "status")
+@Table(name = "roles")
 @ShardedEntity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Status {
+public class Role {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,20 +33,11 @@ public class Status {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "description")
-    private String description;
+    @Column(name = "permissions_mask", nullable = false)
+    private Long permissionsMask = 0L;
 
-    @Column(name = "color", length = 7)
-    private String color; // Hex color code like #28a745
-
-    @Column(name = "is_default", nullable = false)
-    private Boolean isDefault = false;
-
-    @Column(name = "is_closed", nullable = false)
-    private Boolean isClosed = false;
-
-    @Column(name = "position", nullable = false)
-    private Integer position = 0;
+    @Column(name = "is_system_role", nullable = false)
+    private Boolean isSystemRole = false;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -69,14 +61,14 @@ public class Status {
     }
 
     /**
-     * Check if status is active (not deleted).
+     * Check if role is active (not deleted).
      */
     public boolean isActive() {
         return !deleted;
     }
 
     /**
-     * Soft delete the status.
+     * Soft delete the role.
      */
     public void delete() {
         this.deleted = true;
@@ -84,40 +76,25 @@ public class Status {
     }
 
     /**
-     * Check if this status represents a closed/resolved state.
+     * Check if this role has a specific permission.
      */
-    public boolean isClosedStatus() {
-        return isClosed;
+    public boolean hasPermission(Permission permission) {
+        return permission.isEnabledIn(this.permissionsMask);
     }
 
     /**
-     * Check if this is the default status for new tickets.
+     * Add a permission to this role.
      */
-    public boolean isDefaultStatus() {
-        return isDefault;
-    }
-
-    /**
-     * Set this status as the default (and unset others - handled by service layer).
-     */
-    public void setAsDefault() {
-        this.isDefault = true;
+    public void addPermission(Permission permission) {
+        this.permissionsMask = permission.addTo(this.permissionsMask);
         this.updatedAt = LocalDateTime.now();
     }
 
     /**
-     * Unset this status as default.
+     * Remove a permission from this role.
      */
-    public void unsetAsDefault() {
-        this.isDefault = false;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * Update the position of this status.
-     */
-    public void updatePosition(Integer newPosition) {
-        this.position = newPosition;
+    public void removePermission(Permission permission) {
+        this.permissionsMask = permission.removeFrom(this.permissionsMask);
         this.updatedAt = LocalDateTime.now();
     }
 }

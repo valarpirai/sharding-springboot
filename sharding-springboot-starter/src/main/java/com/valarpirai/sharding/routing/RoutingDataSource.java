@@ -126,9 +126,11 @@ public class RoutingDataSource extends AbstractDataSource {
             boolean forceGlobal = repositoryShardingAspect != null &&
                                 repositoryShardingAspect.shouldUseGlobalDataSource();
 
-            if (forceGlobal) {
-                logger.debug("Using global DataSource (forced by RepositoryShardingAspect)");
-                return connectionRouter.routeDataSource(false);
+            logger.info("=== ROUTING DATASOURCE === RepositoryShardingAspect routing decision: forceGlobal={}, aspectAvailable={}",
+                       forceGlobal, repositoryShardingAspect != null);
+
+            if (repositoryShardingAspect != null) {
+                logger.info("RepositoryShardingAspect.shouldUseGlobalDataSource() = {}", repositoryShardingAspect.shouldUseGlobalDataSource());
             }
 
             // Check if we have pre-resolved shard information in TenantContext
@@ -143,21 +145,34 @@ public class RoutingDataSource extends AbstractDataSource {
                            tenantId, readOnly, shardId, hasPreResolvedShard, forceGlobal);
             }
 
+            if (forceGlobal) {
+                logger.info("DATASOURCE DECISION: Using global DataSource (forced by RepositoryShardingAspect)");
+                DataSource result = connectionRouter.routeDataSource(false);
+                logger.info("GLOBAL DATASOURCE: {}", result.getClass().getSimpleName());
+                return result;
+            }
+
             // Use pre-resolved shard information if available
             if (tenantInfo != null && tenantInfo.shardDataSource() != null) {
-                logger.debug("Using pre-resolved shard DataSource from TenantInfo");
-                return tenantInfo.shardDataSource();
+                logger.info("DATASOURCE DECISION: Using pre-resolved shard DataSource from TenantInfo");
+                DataSource result = tenantInfo.shardDataSource();
+                logger.info("SHARD DATASOURCE: {}", result.getClass().getSimpleName());
+                return result;
             }
 
             // If no tenant context or no pre-resolved shard, use global database
             if (tenantInfo == null) {
-                logger.debug("No tenant context - using global DataSource");
-                return connectionRouter.routeDataSource(false);
+                logger.info("DATASOURCE DECISION: No tenant context - using global DataSource");
+                DataSource result = connectionRouter.routeDataSource(false);
+                logger.info("DEFAULT GLOBAL DATASOURCE: {}", result.getClass().getSimpleName());
+                return result;
             }
 
             // Fallback to dynamic routing via ConnectionRouter (should rarely happen)
-            logger.debug("Using ConnectionRouter for dynamic DataSource resolution");
-            return connectionRouter.routeDataSource(true);
+            logger.info("DATASOURCE DECISION: Using ConnectionRouter for dynamic DataSource resolution");
+            DataSource result = connectionRouter.routeDataSource(true);
+            logger.info("DYNAMIC ROUTED DATASOURCE: {}", result.getClass().getSimpleName());
+            return result;
 
         } catch (RoutingException e) {
             logger.error("Failed to route connection: {}", e.getMessage());

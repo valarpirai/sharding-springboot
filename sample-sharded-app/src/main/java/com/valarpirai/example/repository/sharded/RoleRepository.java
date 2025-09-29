@@ -1,6 +1,6 @@
-package com.valarpirai.example.repository;
+package com.valarpirai.example.repository.sharded;
 
-import com.valarpirai.example.entity.Role;
+import com.valarpirai.example.entity.sharded.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

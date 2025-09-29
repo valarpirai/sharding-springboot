@@ -2,8 +2,8 @@ package com.valarpirai.example.service;
 
 import com.valarpirai.example.dto.UserCreateRequest;
 import com.valarpirai.example.dto.UserUpdateRequest;
-import com.valarpirai.example.entity.User;
-import com.valarpirai.example.repository.UserRepository;
+import com.valarpirai.example.entity.sharded.User;
+import com.valarpirai.example.repository.sharded.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;

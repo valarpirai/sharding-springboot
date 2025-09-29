@@ -48,16 +48,34 @@ public class RepositoryShardingAspect {
     private final ConcurrentHashMap<String, Boolean> entityShardingCache = new ConcurrentHashMap<>();
 
     /**
-     * Intercept all method calls on JpaRepository implementations.
-     * Routes to shard or global DataSource based on entity @ShardedEntity annotation.
+     * Comprehensive repository interception using EVERYTHING possible:
+     * 1. Package-based execution
+     * 2. Target-based interception
+     * 3. Interface hierarchy execution
+     * 4. Annotation-based interception
+     * 5. Bean-based interception for Spring Data repositories
      */
-    @Around("target(org.springframework.data.jpa.repository.JpaRepository)")
+    @Around("execution(* com.valarpirai.example.repository..*(..)) || " +
+            "target(org.springframework.data.repository.Repository) || " +
+            "target(org.springframework.data.jpa.repository.JpaRepository) || " +
+            "target(org.springframework.data.repository.CrudRepository) || " +
+            "execution(* org.springframework.data.jpa.repository.JpaRepository+.*(..)) || " +
+            "execution(* org.springframework.data.repository.Repository+.*(..)) || " +
+            "execution(* org.springframework.data.repository.CrudRepository+.*(..)) || " +
+            "@target(org.springframework.stereotype.Repository) || " +
+            "@within(org.springframework.stereotype.Repository) || " +
+            "bean(*Repository)")
     public Object routeRepositoryOperation(ProceedingJoinPoint joinPoint) throws Throwable {
         try {
             Class<?> repositoryClass = joinPoint.getTarget().getClass();
             String repositoryClassName = repositoryClass.getName();
 
-            logger.trace("Processing repository operation on: {}", repositoryClassName);
+            logger.info("=== ASPECT TRIGGERED === Processing repository operation on: {}", repositoryClassName);
+            logger.info("Method: {}", joinPoint.getSignature().toShortString());
+            logger.info("Target class: {}", repositoryClass);
+            logger.info("Target interfaces: {}", String.join(", ",
+                java.util.Arrays.stream(repositoryClass.getInterfaces()).map(Class::getSimpleName).toArray(String[]::new)));
+            logger.info("Current thread: {}", Thread.currentThread().getName());
 
             // Check cache first for performance
             Boolean cachedShardingResult = getCachedShardingDecision(repositoryClassName);
@@ -66,9 +84,10 @@ public class RepositoryShardingAspect {
             if (cachedShardingResult != null) {
                 // Cache hit - use cached result
                 isShardedEntity = cachedShardingResult;
-                logger.trace("Cache hit for repository {}: sharded={}", repositoryClassName, isShardedEntity);
+                logger.info("CACHE HIT for repository {}: sharded={}", repositoryClassName, isShardedEntity);
             } else {
                 // Cache miss - determine entity class and sharding status
+                logger.info("CACHE MISS - determining entity class and sharding status...");
                 Class<?> entityClass = determineEntityClassWithCache(repositoryClass, joinPoint);
                 isShardedEntity = determineShardingStatusWithCache(entityClass);
 
@@ -76,25 +95,44 @@ public class RepositoryShardingAspect {
                 cacheShardingDecision(repositoryClassName, isShardedEntity);
 
                 if (entityClass != null) {
-                    logger.debug("Repository operation on entity {}: sharded={}",
-                               entityClass.getSimpleName(), isShardedEntity);
+                    logger.info("REPOSITORY ANALYSIS: Repository {} -> Entity {} -> @ShardedEntity: {}",
+                               repositoryClass.getSimpleName(), entityClass.getSimpleName(), isShardedEntity);
                 } else {
-                    logger.debug("Could not determine entity class for repository: {} - assuming non-sharded",
+                    logger.warn("ENTITY DETECTION FAILED: Could not determine entity class for repository: {} - assuming non-sharded",
                                repositoryClass.getSimpleName());
                 }
             }
 
             // Set routing context for DataSource selection
+            logger.info("ROUTING DECISION: Setting routing context - useShardDataSource={}", isShardedEntity);
             setRoutingContext(isShardedEntity);
 
+            // Log current TenantContext state
+            TenantInfo tenantInfo = TenantContext.getTenantInfo();
+            if (tenantInfo != null) {
+                logger.info("TENANT CONTEXT: tenantId={}, shardId={}, readOnly={}, hasShardDataSource={}",
+                           tenantInfo.tenantId(), tenantInfo.shardId(), tenantInfo.readOnlyMode(),
+                           tenantInfo.shardDataSource() != null);
+            } else {
+                logger.warn("TENANT CONTEXT: No TenantContext available!");
+            }
+
+            // Log the routing context we just set
+            Boolean forceGlobal = forceGlobalDataSource.get();
+            logger.info("ROUTING STATE: forceGlobalDataSource ThreadLocal = {}", forceGlobal);
+
             // Proceed with the repository method call
-            return joinPoint.proceed();
+            logger.info("EXECUTING: Repository method call...");
+            Object result = joinPoint.proceed();
+            logger.info("COMPLETED: Repository method execution finished");
+            return result;
 
         } finally {
             // Always clear routing context after the operation
             clearRoutingContext();
         }
     }
+
 
     /**
      * Get cached sharding decision for a repository.
@@ -121,7 +159,7 @@ public class RepositoryShardingAspect {
         // Check repository -> entity cache first
         Class<?> cachedEntityClass = repositoryEntityCache.get(repositoryClassName);
         if (cachedEntityClass != null) {
-            logger.trace("Cache hit for repository->entity mapping {}: {}",
+            logger.debug("Cache hit for repository->entity mapping {}: {}",
                        repositoryClassName, cachedEntityClass.getSimpleName());
             return cachedEntityClass;
         }
@@ -129,17 +167,40 @@ public class RepositoryShardingAspect {
         // Cache miss - try multiple approaches to determine entity class
         Class<?> entityClass = null;
 
+        logger.debug("Cache miss for repository {}, trying detection approaches...", repositoryClassName);
+
         // Approach 1: Try to get entity class from repository class
+        logger.debug("Approach 1: Trying getEntityClass for {}", repositoryClassName);
         entityClass = getEntityClass(repositoryClass);
+        if (entityClass != null) {
+            logger.debug("Approach 1 SUCCESS: Found entity {} for repository {}",
+                       entityClass.getSimpleName(), repositoryClassName);
+        } else {
+            logger.debug("Approach 1 FAILED: No entity found via getEntityClass");
+        }
 
         // Approach 2: If failed, try to get from method signature
         if (entityClass == null) {
+            logger.debug("Approach 2: Trying getEntityClassFromMethod for {}", repositoryClassName);
             entityClass = getEntityClassFromMethod(joinPoint);
+            if (entityClass != null) {
+                logger.debug("Approach 2 SUCCESS: Found entity {} from method signature",
+                           entityClass.getSimpleName());
+            } else {
+                logger.debug("Approach 2 FAILED: No entity found from method signature");
+            }
         }
 
         // Approach 3: If still failed, try to get original repository interface
         if (entityClass == null) {
+            logger.debug("Approach 3: Trying getEntityClassFromOriginalInterface for {}", repositoryClassName);
             entityClass = getEntityClassFromOriginalInterface(repositoryClass);
+            if (entityClass != null) {
+                logger.debug("Approach 3 SUCCESS: Found entity {} from original interface",
+                           entityClass.getSimpleName());
+            } else {
+                logger.debug("Approach 3 FAILED: No entity found from original interface");
+            }
         }
 
         // Cache the result (even if null to avoid repeated expensive lookups)
@@ -175,11 +236,13 @@ public class RepositoryShardingAspect {
         }
 
         // Cache miss - check annotation
+        logger.debug("Checking @ShardedEntity annotation on entity class: {}", entityClassName);
         boolean isShardedEntity = entityClass.isAnnotationPresent(ShardedEntity.class);
+        logger.debug("Entity {} has @ShardedEntity: {}", entityClassName, isShardedEntity);
 
         // Cache the result
         entityShardingCache.put(entityClassName, isShardedEntity);
-        logger.trace("Cached sharding status for entity {}: {}",
+        logger.debug("Cached sharding status for entity {}: {}",
                    entityClassName, isShardedEntity);
 
         return isShardedEntity;
@@ -245,23 +308,34 @@ public class RepositoryShardingAspect {
      * Set routing context to indicate whether to use shard or global DataSource.
      */
     private void setRoutingContext(boolean forShardedEntity) {
+        logger.info("SET ROUTING CONTEXT: forShardedEntity={}", forShardedEntity);
+
         if (forShardedEntity) {
             // For sharded entities, ensure TenantContext has shard information
             TenantInfo tenantInfo = TenantContext.getTenantInfo();
             if (tenantInfo == null || tenantInfo.shardDataSource() == null) {
-                logger.warn("Sharded entity operation attempted without proper tenant context. " +
-                          "Ensure ShardSelectorFilter has set complete TenantInfo.");
+                logger.warn("ROUTING CONTEXT: Sharded entity operation attempted without proper tenant context. " +
+                          "Ensure ShardSelectorFilter has set complete TenantInfo. " +
+                          "tenantInfo={}, hasShardDataSource={}",
+                          tenantInfo, tenantInfo != null ? tenantInfo.shardDataSource() != null : "N/A");
                 // Force global DataSource as fallback
                 forceGlobalDataSource.set(true);
+                logger.info("ROUTING CONTEXT: Set forceGlobalDataSource=true (fallback for missing tenant context)");
             } else {
-                logger.trace("Using shard DataSource for sharded entity operation");
+                logger.info("ROUTING CONTEXT: Using shard DataSource for sharded entity operation");
                 forceGlobalDataSource.remove(); // Use shard DataSource
+                logger.info("ROUTING CONTEXT: Removed forceGlobalDataSource ThreadLocal (allow shard routing)");
             }
         } else {
             // For non-sharded entities, always use global DataSource
-            logger.trace("Using global DataSource for non-sharded entity operation");
+            logger.info("ROUTING CONTEXT: Using global DataSource for non-sharded entity operation");
             forceGlobalDataSource.set(true);
+            logger.info("ROUTING CONTEXT: Set forceGlobalDataSource=true (non-sharded entity)");
         }
+
+        // Double-check the ThreadLocal state
+        Boolean currentState = forceGlobalDataSource.get();
+        logger.info("ROUTING CONTEXT FINAL STATE: forceGlobalDataSource ThreadLocal = {}", currentState);
     }
 
     /**
@@ -342,13 +416,18 @@ public class RepositoryShardingAspect {
         }
 
         try {
-            logger.trace("Attempting to extract entity class from repository: {}", repositoryClass.getName());
+            logger.info("!!! GETENTITYCLASS CALLED !!! Stack trace to understand call path for repository: {}", repositoryClass.getName());
+            logger.info("!!! STACK TRACE !!! {}", Thread.currentThread().getStackTrace()[3].toString());
+            logger.debug("Attempting to extract entity class from repository: {}", repositoryClass.getName());
 
             // Handle Spring proxy classes - look at interfaces first
+            logger.debug("Step 1: Extracting entity from interfaces of {}", repositoryClass.getName());
             Class<?> entityClass = extractEntityFromInterfaces(repositoryClass);
             if (entityClass != null) {
+                logger.debug("Step 1 SUCCESS: Found entity {} from interfaces", entityClass.getSimpleName());
                 return entityClass;
             }
+            logger.debug("Step 1 FAILED: No entity found from interfaces");
 
             // Try to get the actual target class from Spring proxies
             Class<?> targetClass = AopProxyUtils.ultimateTargetClass(repositoryClass);

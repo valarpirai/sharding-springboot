@@ -1,4 +1,4 @@
-package com.valarpirai.example.entity;
+package com.valarpirai.example.entity.sharded;
 
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import lombok.Data;

@@ -2,8 +2,8 @@ package com.valarpirai.example.service;
 
 import com.valarpirai.example.dto.TicketCreateRequest;
 import com.valarpirai.example.dto.TicketUpdateRequest;
-import com.valarpirai.example.entity.Ticket;
-import com.valarpirai.example.repository.TicketRepository;
+import com.valarpirai.example.entity.sharded.Ticket;
+import com.valarpirai.example.repository.sharded.TicketRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

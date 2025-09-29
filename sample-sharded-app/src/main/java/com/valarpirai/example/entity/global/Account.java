@@ -1,4 +1,4 @@
-package com.valarpirai.example.entity;
+package com.valarpirai.example.entity.global;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

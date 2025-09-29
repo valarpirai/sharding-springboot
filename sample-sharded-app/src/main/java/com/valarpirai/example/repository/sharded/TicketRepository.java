@@ -1,7 +1,7 @@
-package com.valarpirai.example.repository;
+package com.valarpirai.example.repository.sharded;
 
-import com.valarpirai.example.entity.Ticket;
-import com.valarpirai.example.entity.Priority;
+import com.valarpirai.example.entity.sharded.Ticket;
+import com.valarpirai.example.entity.global.Priority;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

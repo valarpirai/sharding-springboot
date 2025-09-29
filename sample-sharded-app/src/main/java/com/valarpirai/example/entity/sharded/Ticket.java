@@ -1,6 +1,7 @@
-package com.valarpirai.example.entity;
+package com.valarpirai.example.entity.sharded;
 
 import com.valarpirai.sharding.annotation.ShardedEntity;
+import com.valarpirai.example.entity.global.Priority;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;

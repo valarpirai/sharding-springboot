@@ -9,7 +9,6 @@ import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.routing.ConnectionRouter;
 import com.valarpirai.sharding.routing.RoutingDataSource;
 import com.valarpirai.sharding.routing.ShardDataSources;
-import com.valarpirai.sharding.transaction.RoutingTransactionManager;
 import com.valarpirai.sharding.validation.EntityValidator;
 import com.valarpirai.sharding.validation.QueryValidator;
 import com.valarpirai.sharding.validation.ValidatingDataSource;
@@ -42,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Configuration
 @EnableConfigurationProperties(ShardingConfigProperties.class)
 @Import({CacheConfiguration.class,
+         DualDataSourceAutoConfiguration.class,
          com.valarpirai.sharding.observability.OpenTelemetryConfiguration.class})
 @EnableAspectJAutoProxy
 public class ShardingAutoConfiguration {
@@ -231,19 +231,6 @@ public class ShardingAutoConfiguration {
         return new ValidatingDataSource(routingDataSource, queryValidator);
     }
 
-    /**
-     * Primary transaction manager with routing capabilities for sharded operations.
-     * This transaction manager automatically routes transactions to the appropriate
-     * shard based on tenant context, ensuring transactions are bound to the correct DataSource.
-     */
-    @Bean("transactionManager")
-    @Primary
-    @ConditionalOnMissingBean(name = "transactionManager")
-    public PlatformTransactionManager transactionManager(ConnectionRouter connectionRouter,
-                                                        DataSource globalDataSource) {
-        logger.info("Creating routing transaction manager for sharded operations");
-        return new RoutingTransactionManager(connectionRouter, globalDataSource);
-    }
 
     /**
      * Create ShardDataSources for a specific shard.

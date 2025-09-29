@@ -3,7 +3,7 @@ package com.valarpirai.example.controller;
 import com.valarpirai.example.dto.TicketCreateRequest;
 import com.valarpirai.example.dto.TicketResponse;
 import com.valarpirai.example.dto.TicketUpdateRequest;
-import com.valarpirai.example.entity.Ticket;
+import com.valarpirai.example.entity.sharded.Ticket;
 import com.valarpirai.example.service.TicketService;
 import com.valarpirai.sharding.context.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;

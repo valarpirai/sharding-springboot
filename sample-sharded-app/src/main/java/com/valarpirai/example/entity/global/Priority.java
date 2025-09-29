@@ -1,4 +1,4 @@
-package com.valarpirai.example.entity;
+package com.valarpirai.example.entity.global;
 
 public enum Priority {
     LOW("Low"),

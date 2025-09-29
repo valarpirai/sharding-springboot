@@ -1,7 +1,7 @@
 package com.valarpirai.example.service;
 
-import com.valarpirai.example.entity.User;
-import com.valarpirai.example.repository.UserRepository;
+import com.valarpirai.example.entity.sharded.User;
+import com.valarpirai.example.repository.sharded.UserRepository;
 import com.valarpirai.sharding.context.TenantContext;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

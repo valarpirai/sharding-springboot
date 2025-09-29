@@ -1,6 +1,6 @@
-package com.valarpirai.example.repository;
+package com.valarpirai.example.repository.sharded;
 
-import com.valarpirai.example.entity.Status;
+import com.valarpirai.example.entity.sharded.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -1,7 +1,10 @@
 package com.valarpirai.example.service;
 
-import com.valarpirai.example.entity.*;
-import com.valarpirai.example.repository.*;
+import com.valarpirai.example.entity.global.Account;
+import com.valarpirai.example.entity.global.Priority;
+import com.valarpirai.example.repository.global.AccountRepository;
+import com.valarpirai.example.entity.sharded.*;
+import com.valarpirai.example.repository.sharded.*;
 import com.valarpirai.example.security.PermissionMasks;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;

@@ -2,12 +2,12 @@ package com.valarpirai.example.service;
 
 import com.valarpirai.example.dto.SignupRequest;
 import com.valarpirai.example.dto.SignupResponse;
-import com.valarpirai.example.entity.Account;
-import com.valarpirai.example.entity.Role;
-import com.valarpirai.example.entity.User;
-import com.valarpirai.example.repository.AccountRepository;
-import com.valarpirai.example.repository.RoleRepository;
-import com.valarpirai.example.repository.UserRepository;
+import com.valarpirai.example.entity.global.Account;
+import com.valarpirai.example.entity.sharded.Role;
+import com.valarpirai.example.entity.sharded.User;
+import com.valarpirai.example.repository.global.AccountRepository;
+import com.valarpirai.example.repository.sharded.RoleRepository;
+import com.valarpirai.example.repository.sharded.UserRepository;
 import com.valarpirai.example.security.PermissionMasks;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
