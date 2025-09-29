@@ -4,7 +4,7 @@ import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
 import com.valarpirai.sharding.lookup.ShardLookupService;
 import com.valarpirai.sharding.lookup.ShardUtils;
-import com.valarpirai.sharding.routing.ConnectionRouter;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import com.valarpirai.sharding.validation.EntityValidator;
 import com.valarpirai.sharding.validation.QueryValidator;
 import org.junit.jupiter.api.Test;
@@ -47,7 +47,7 @@ class ShardingAutoConfigurationTest {
                     assertThat(context).hasSingleBean(TenantIterator.class);
                     assertThat(context).hasSingleBean(QueryValidator.class);
                     assertThat(context).hasSingleBean(EntityValidator.class);
-                    assertThat(context).hasSingleBean(ConnectionRouter.class);
+                    assertThat(context).hasSingleBean(ShardAwareDataSourceDelegate.class);
                     assertThat(context).hasSingleBean(CacheManager.class);
                 });
     }

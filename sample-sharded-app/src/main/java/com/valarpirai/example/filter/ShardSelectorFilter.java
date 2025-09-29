@@ -5,7 +5,7 @@ import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
-import com.valarpirai.sharding.routing.ConnectionRouter;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -36,14 +36,14 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
 
     private final IShardLookupService shardLookupService;
     private final AccountValidationService accountValidationService;
-    private final ConnectionRouter connectionRouter;
+    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
     public ShardSelectorFilter(IShardLookupService shardLookupService,
                                AccountValidationService accountValidationService,
-                               ConnectionRouter connectionRouter) {
+                               ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         this.shardLookupService = shardLookupService;
         this.accountValidationService = accountValidationService;
-        this.connectionRouter = connectionRouter;
+        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     @Override
@@ -91,7 +91,7 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
 
                 TenantShardMapping mapping = mappingOpt.get();
                 String shardId = mapping.getShardId();
-                DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
+                DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(shardId, false);
 
                 // Create TenantInfo with pre-resolved shard information
                 TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false, shardDataSource);

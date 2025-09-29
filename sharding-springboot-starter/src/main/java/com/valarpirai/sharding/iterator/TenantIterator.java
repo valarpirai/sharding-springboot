@@ -5,7 +5,7 @@ import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.exception.TenantIteratorException;
 import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
-import com.valarpirai.sharding.routing.ConnectionRouter;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,11 +31,11 @@ public class TenantIterator {
     private static final int DEFAULT_BATCH_SIZE = 10;
 
     private final IShardLookupService shardLookupService;
-    private final ConnectionRouter connectionRouter;
+    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
-    public TenantIterator(IShardLookupService shardLookupService, ConnectionRouter connectionRouter) {
+    public TenantIterator(IShardLookupService shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         this.shardLookupService = shardLookupService;
-        this.connectionRouter = connectionRouter;
+        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     /**
@@ -283,7 +283,7 @@ public class TenantIterator {
         try {
             // Create TenantInfo with pre-resolved shard DataSource
             String shardId = mapping.getShardId();
-            javax.sql.DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
+            javax.sql.DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(shardId, false);
 
             TenantInfo tenantInfo = new TenantInfo(mapping.getTenantId(), shardId, false, shardDataSource);
             logger.trace("Set tenant context for batch processing - tenant: {}, shard: {}",

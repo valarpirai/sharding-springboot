@@ -5,7 +5,7 @@ import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
 import com.valarpirai.sharding.lookup.ShardLookupService;
 import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.ShardUtils;
-import com.valarpirai.sharding.routing.ConnectionRouter;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import com.valarpirai.sharding.routing.RoutingDataSource;
 import com.valarpirai.sharding.routing.ShardDataSources;
 import com.valarpirai.sharding.validation.EntityValidator;
@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Auto-configuration class for the Sharding library.
+ * Autoconfiguration class for the Sharding library.
  * Sets up all necessary beans and validates configuration.
  */
 @Configuration
@@ -121,8 +121,8 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public TenantIterator tenantIterator(IShardLookupService shardLookupService, ConnectionRouter connectionRouter) {
-        return new TenantIterator(shardLookupService, connectionRouter);
+    public TenantIterator tenantIterator(IShardLookupService shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+        return new TenantIterator(shardLookupService, shardAwareDataSourceDelegate);
     }
 
     /**
@@ -172,10 +172,10 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ConnectionRouter connectionRouter(Map<String, ShardDataSources> shardDataSources,
-                                           DataSource globalDataSource,
-                                           IShardLookupService shardLookupService) {
-        return new ConnectionRouter(shardLookupService, shardDataSources, globalDataSource);
+    public ShardAwareDataSourceDelegate shardAwareDataSourceDelegate(Map<String, ShardDataSources> shardDataSources,
+                                                         DataSource globalDataSource,
+                                                         IShardLookupService shardLookupService) {
+        return new ShardAwareDataSourceDelegate(shardLookupService, shardDataSources, globalDataSource);
     }
 
     /**
@@ -184,10 +184,10 @@ public class ShardingAutoConfiguration {
     @Bean
     @Primary
     @ConditionalOnMissingBean
-    public DataSource primaryDataSource(ConnectionRouter connectionRouter) {
+    public DataSource primaryDataSource(ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         logger.info("Creating primary routing DataSource");
 
-        return new RoutingDataSource(connectionRouter);
+        return new RoutingDataSource(shardAwareDataSourceDelegate);
     }
 
 

@@ -1,6 +1,6 @@
 package com.valarpirai.sharding.config;
 
-import com.valarpirai.sharding.routing.ShardedRoutingDataSource;
+import com.valarpirai.sharding.routing.TenantAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -98,7 +98,7 @@ public class ShardingJpaAutoConfiguration {
         @Bean(name = "shardedDataSource")
         @Primary
         public DataSource shardedDataSource(@Qualifier("globalDataSource") DataSource globalDataSource) {
-            return new ShardedRoutingDataSource(globalDataSource);
+            return new TenantAwareDataSourceDelegate(globalDataSource);
         }
 
         @Bean(name = "shardedEntityManagerFactory")

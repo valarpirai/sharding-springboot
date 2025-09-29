@@ -1,13 +1,11 @@
 package com.valarpirai.sharding.routing;
 
-import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.exception.RoutingException;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.datasource.AbstractDataSource;
 
 import javax.sql.DataSource;
@@ -22,13 +20,13 @@ public class RoutingDataSource extends AbstractDataSource {
 
     private static final Logger logger = LoggerFactory.getLogger(RoutingDataSource.class);
 
-    private final ConnectionRouter connectionRouter;
+    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
 
     // OpenTelemetry tracing via @WithSpan annotations only
 
-    public RoutingDataSource(ConnectionRouter connectionRouter) {
-        this.connectionRouter = connectionRouter;
+    public RoutingDataSource(ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     @Override
@@ -110,14 +108,14 @@ public class RoutingDataSource extends AbstractDataSource {
             // If no tenant context or no pre-resolved shard, use global database
             if (tenantInfo == null) {
                 logger.info("DATASOURCE DECISION: No tenant context - using global DataSource");
-                DataSource result = connectionRouter.routeDataSource(false);
+                DataSource result = shardAwareDataSourceDelegate.routeDataSource(false);
                 logger.info("DEFAULT GLOBAL DATASOURCE: {}", result.getClass().getSimpleName());
                 return result;
             }
 
             // Fallback to dynamic routing via ConnectionRouter (should rarely happen)
             logger.info("DATASOURCE DECISION: Using ConnectionRouter for dynamic DataSource resolution");
-            DataSource result = connectionRouter.routeDataSource(true);
+            DataSource result = shardAwareDataSourceDelegate.routeDataSource(true);
             logger.info("DYNAMIC ROUTED DATASOURCE: {}", result.getClass().getSimpleName());
             return result;
 
@@ -167,8 +165,8 @@ public class RoutingDataSource extends AbstractDataSource {
      *
      * @return routing statistics
      */
-    public ConnectionRouter.RoutingStatistics getRoutingStatistics() {
-        return connectionRouter.getRoutingStatistics();
+    public ShardAwareDataSourceDelegate.RoutingStatistics getRoutingStatistics() {
+        return shardAwareDataSourceDelegate.getRoutingStatistics();
     }
 
     /**
@@ -178,7 +176,7 @@ public class RoutingDataSource extends AbstractDataSource {
      * @return true if shard is available
      */
     public boolean isShardAvailable(String shardId) {
-        return connectionRouter.isShardAvailable(shardId);
+        return shardAwareDataSourceDelegate.isShardAvailable(shardId);
     }
 
     /**
@@ -186,8 +184,8 @@ public class RoutingDataSource extends AbstractDataSource {
      *
      * @return the connection router
      */
-    public ConnectionRouter getConnectionRouter() {
-        return connectionRouter;
+    public ShardAwareDataSourceDelegate getConnectionRouter() {
+        return shardAwareDataSourceDelegate;
     }
 
 

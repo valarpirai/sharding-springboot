@@ -479,13 +479,13 @@ public class TenantOnboardingService {
 @RequestMapping("/admin/sharding")
 public class ShardingAdminController {
 
-    private final ConnectionRouter connectionRouter;
+    private final ConnectionRouter shardAwareDataSourceDelegate;
     private final ShardUtils shardUtils;
 
     @GetMapping("/stats")
     public ResponseEntity<Object> getShardingStatistics() {
         return ResponseEntity.ok(Map.of(
-            "routing", connectionRouter.getRoutingStatistics(),
+            "routing", shardAwareDataSourceDelegate.getRoutingStatistics(),
             "shards", shardUtils.getShardStatistics(),
             "tenants", shardUtils.getTenantDistribution()
         ));
@@ -493,7 +493,7 @@ public class ShardingAdminController {
 
     @GetMapping("/health/{shardId}")
     public ResponseEntity<String> checkShardHealth(@PathVariable String shardId) {
-        boolean available = connectionRouter.isShardAvailable(shardId);
+        boolean available = shardAwareDataSourceDelegate.isShardAvailable(shardId);
         return ResponseEntity.ok(available ? "UP" : "DOWN");
     }
 }

@@ -13,7 +13,7 @@ import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.ShardUtils;
-import com.valarpirai.sharding.routing.ConnectionRouter;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,7 +34,7 @@ public class AccountSignupService {
     private final ShardUtils shardUtils;
     private final PasswordEncoder passwordEncoder;
     private final AccountDemoSetupService demoSetupService;
-    private final ConnectionRouter connectionRouter;
+    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
     public AccountSignupService(AccountRepository accountRepository,
                               RoleRepository roleRepository,
@@ -43,7 +43,7 @@ public class AccountSignupService {
                               ShardUtils shardUtils,
                               PasswordEncoder passwordEncoder,
                               AccountDemoSetupService demoSetupService,
-                              ConnectionRouter connectionRouter) {
+                              ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
@@ -51,7 +51,7 @@ public class AccountSignupService {
         this.shardUtils = shardUtils;
         this.passwordEncoder = passwordEncoder;
         this.demoSetupService = demoSetupService;
-        this.connectionRouter = connectionRouter;
+        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     /**
@@ -79,7 +79,7 @@ public class AccountSignupService {
         logger.info("Mapped account {} to latest shard: {}", account.getId(), latestShardId);
 
         // 3. Set complete tenant context with pre-resolved shard for subsequent operations
-        javax.sql.DataSource shardDataSource = connectionRouter.getShardDataSource(latestShardId, false);
+        javax.sql.DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(latestShardId, false);
         TenantInfo tenantInfo = new TenantInfo(account.getId(), latestShardId, false, shardDataSource);
         TenantContext.setTenantInfo(tenantInfo);
         logger.debug("Set signup context - tenant: {}, shard: {}", account.getId(), latestShardId);

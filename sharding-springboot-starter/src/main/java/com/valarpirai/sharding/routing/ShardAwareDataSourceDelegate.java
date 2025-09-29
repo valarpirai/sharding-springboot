@@ -18,17 +18,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * Handles shard lookup, replica selection, and connection pooling.
  */
 @Component
-public class ConnectionRouter {
+public class ShardAwareDataSourceDelegate {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConnectionRouter.class);
+    private static final Logger logger = LoggerFactory.getLogger(ShardAwareDataSourceDelegate.class);
 
     private final IShardLookupService shardLookupService;
     private final Map<String, ShardDataSources> shardDataSources;
     private final DataSource globalDataSource;
 
-    public ConnectionRouter(IShardLookupService shardLookupService,
-                            Map<String, ShardDataSources> shardDataSources,
-                            DataSource globalDataSource) {
+    public ShardAwareDataSourceDelegate(IShardLookupService shardLookupService,
+                                        Map<String, ShardDataSources> shardDataSources,
+                                        DataSource globalDataSource) {
         this.shardLookupService = shardLookupService;
         this.shardDataSources = new ConcurrentHashMap<>(shardDataSources);
         this.globalDataSource = globalDataSource;
@@ -185,14 +185,9 @@ public class ConnectionRouter {
     }
 
     /**
-     * Container for routing statistics.
-     */
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    public static class RoutingStatistics {
-        private final int totalShards;
-        private final int shardsWithReplicas;
-
+    * Container for routing statistics.
+    */
+    public record RoutingStatistics(int totalShards, int shardsWithReplicas) {
         public int getShardsWithoutReplicas() {
             return totalShards - shardsWithReplicas;
         }

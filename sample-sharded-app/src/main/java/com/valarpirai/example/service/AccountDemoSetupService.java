@@ -1,6 +1,5 @@
 package com.valarpirai.example.service;
 
-import com.valarpirai.example.entity.global.Account;
 import com.valarpirai.example.entity.global.Priority;
 import com.valarpirai.example.repository.global.AccountRepository;
 import com.valarpirai.example.entity.sharded.*;
@@ -10,7 +9,7 @@ import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.lookup.IShardLookupService;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
-import com.valarpirai.sharding.routing.ConnectionRouter;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -37,7 +36,7 @@ public class AccountDemoSetupService {
     private final TicketRepository ticketRepository;
     private final PasswordEncoder passwordEncoder;
     private final IShardLookupService shardLookupService;
-    private final ConnectionRouter connectionRouter;
+    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
     public AccountDemoSetupService(AccountRepository accountRepository,
                                  RoleRepository roleRepository,
@@ -46,7 +45,7 @@ public class AccountDemoSetupService {
                                  TicketRepository ticketRepository,
                                  PasswordEncoder passwordEncoder,
                                  IShardLookupService shardLookupService,
-                                 ConnectionRouter connectionRouter) {
+                                 ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.statusRepository = statusRepository;
@@ -54,7 +53,7 @@ public class AccountDemoSetupService {
         this.ticketRepository = ticketRepository;
         this.passwordEncoder = passwordEncoder;
         this.shardLookupService = shardLookupService;
-        this.connectionRouter = connectionRouter;
+        this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
     /**
@@ -276,7 +275,7 @@ public class AccountDemoSetupService {
 
             TenantShardMapping mapping = mappingOpt.get();
             String shardId = mapping.getShardId();
-            javax.sql.DataSource shardDataSource = connectionRouter.getShardDataSource(shardId, false);
+            javax.sql.DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(shardId, false);
 
             // Create TenantInfo with complete shard context
             TenantInfo tenantInfo = new TenantInfo(accountId, shardId, false, shardDataSource);

@@ -22,7 +22,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for ConnectionRouter.
  */
 @ExtendWith(MockitoExtension.class)
-class ConnectionRouterTest {
+class ShardAwareDataSourceDelegateTest {
 
     @Mock
     private ShardLookupService shardLookupService;
@@ -40,7 +40,7 @@ class ConnectionRouterTest {
     private DataSource shard2MasterDataSource;
 
     private Map<String, ShardDataSources> shardDataSources;
-    private ConnectionRouter connectionRouter;
+    private ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
     @BeforeEach
     void setUp() {
@@ -57,7 +57,7 @@ class ConnectionRouterTest {
         ShardDataSources shard2DataSources = new ShardDataSources("shard2", shard2MasterDataSource);
         shardDataSources.put("shard2", shard2DataSources);
 
-        connectionRouter = new ConnectionRouter(shardLookupService, shardDataSources, globalDataSource);
+        shardAwareDataSourceDelegate = new ShardAwareDataSourceDelegate(shardLookupService, shardDataSources, globalDataSource);
     }
 
     @AfterEach
@@ -68,7 +68,7 @@ class ConnectionRouterTest {
     @Test
     void testGetDataSourceWithoutTenantContext() {
         // When no tenant context is set, should return global data source
-        DataSource result = connectionRouter.getDataSource();
+        DataSource result = shardAwareDataSourceDelegate.getDataSource();
         assertEquals(globalDataSource, result);
     }
 
@@ -83,7 +83,7 @@ class ConnectionRouterTest {
 
         // When
         TenantContext.setTenantId(tenantId);
-        DataSource result = connectionRouter.getDataSource();
+        DataSource result = shardAwareDataSourceDelegate.getDataSource();
 
         // Then
         assertEquals(shard1MasterDataSource, result);
@@ -102,7 +102,7 @@ class ConnectionRouterTest {
         // When
         TenantContext.setTenantId(tenantId);
         TenantContext.setReadOnlyMode(true);
-        DataSource result = connectionRouter.getDataSource();
+        DataSource result = shardAwareDataSourceDelegate.getDataSource();
 
         // Then
         // Should return replica data source when in read-only mode
@@ -121,7 +121,7 @@ class ConnectionRouterTest {
 
         // Then
         assertThrows(IllegalStateException.class, () -> {
-            connectionRouter.getDataSource();
+            shardAwareDataSourceDelegate.getDataSource();
         });
 
         verify(shardLookupService).findShardByTenantId(tenantId);
@@ -141,7 +141,7 @@ class ConnectionRouterTest {
 
         // Then
         assertThrows(IllegalStateException.class, () -> {
-            connectionRouter.getDataSource();
+            shardAwareDataSourceDelegate.getDataSource();
         });
     }
 
@@ -157,7 +157,7 @@ class ConnectionRouterTest {
         // When
         TenantContext.setTenantId(tenantId);
         TenantContext.setReadOnlyMode(true);
-        DataSource result = connectionRouter.getDataSource();
+        DataSource result = shardAwareDataSourceDelegate.getDataSource();
 
         // Then
         // Should fall back to master when no replicas available
@@ -167,18 +167,18 @@ class ConnectionRouterTest {
     @Test
     void testIsShardAvailable() {
         // Test with existing shard
-        assertTrue(connectionRouter.isShardAvailable("shard1"));
-        assertTrue(connectionRouter.isShardAvailable("shard2"));
+        assertTrue(shardAwareDataSourceDelegate.isShardAvailable("shard1"));
+        assertTrue(shardAwareDataSourceDelegate.isShardAvailable("shard2"));
 
         // Test with non-existing shard
-        assertFalse(connectionRouter.isShardAvailable("invalid_shard"));
-        assertFalse(connectionRouter.isShardAvailable(null));
+        assertFalse(shardAwareDataSourceDelegate.isShardAvailable("invalid_shard"));
+        assertFalse(shardAwareDataSourceDelegate.isShardAvailable(null));
     }
 
     @Test
     void testGetRoutingStatistics() {
         // Test routing statistics functionality
-        ConnectionRouter.RoutingStatistics stats = connectionRouter.getRoutingStatistics();
+        ShardAwareDataSourceDelegate.RoutingStatistics stats = shardAwareDataSourceDelegate.getRoutingStatistics();
 
         assertNotNull(stats);
         assertEquals(0, stats.getTotalRoutingRequests());
@@ -205,18 +205,18 @@ class ConnectionRouterTest {
 
         // When - make some routing requests
         TenantContext.setTenantId(tenantId1);
-        connectionRouter.getDataSource();
+        shardAwareDataSourceDelegate.getDataSource();
         TenantContext.clear();
 
         TenantContext.setTenantId(tenantId2);
-        connectionRouter.getDataSource();
+        shardAwareDataSourceDelegate.getDataSource();
         TenantContext.clear();
 
         // Global request
-        connectionRouter.getDataSource();
+        shardAwareDataSourceDelegate.getDataSource();
 
         // Then
-        ConnectionRouter.RoutingStatistics stats = connectionRouter.getRoutingStatistics();
+        ShardAwareDataSourceDelegate.RoutingStatistics stats = shardAwareDataSourceDelegate.getRoutingStatistics();
         assertEquals(3, stats.getTotalRoutingRequests());
         assertEquals(1, stats.getGlobalDatabaseRequests());
         assertEquals(2, stats.getShardRequests());
@@ -244,7 +244,7 @@ class ConnectionRouterTest {
             threads[i] = new Thread(() -> {
                 TenantContext.setTenantId(tenantId);
                 try {
-                    results[index] = connectionRouter.getDataSource();
+                    results[index] = shardAwareDataSourceDelegate.getDataSource();
                 } finally {
                     TenantContext.clear();
                 }
@@ -282,9 +282,9 @@ class ConnectionRouterTest {
         TenantContext.setTenantId(tenantId);
 
         // Make multiple requests
-        DataSource result1 = connectionRouter.getDataSource();
-        DataSource result2 = connectionRouter.getDataSource();
-        DataSource result3 = connectionRouter.getDataSource();
+        DataSource result1 = shardAwareDataSourceDelegate.getDataSource();
+        DataSource result2 = shardAwareDataSourceDelegate.getDataSource();
+        DataSource result3 = shardAwareDataSourceDelegate.getDataSource();
 
         // All should return same data source
         assertEquals(shard1MasterDataSource, result1);
