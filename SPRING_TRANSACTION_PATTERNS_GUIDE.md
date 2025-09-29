@@ -1,8 +1,10 @@
-# Spring Boot Transaction Patterns - Complete Guide
+# Spring Boot Transaction Patterns - Reference Guide
 
-## 🎯 **All Transaction Patterns in Spring Boot**
+> 📋 **Note**: This is a comprehensive reference. For sharding-specific transaction patterns, see TRANSACTIONAL_SHARDING_GUIDE.md.
 
-Spring Boot provides multiple ways to handle transactions, each with different use cases, benefits, and trade-offs. Here's a comprehensive overview of all available patterns:
+## 🎯 **Complete Transaction Pattern Reference**
+
+Exhaustive guide to all Spring Boot transaction patterns:
 
 ## **1. 📝 Declarative Transactions (@Transactional)**
 
@@ -590,4 +592,4 @@ public class TestTransactionConfig {
 7. **Test transaction behavior** - Verify rollback/commit scenarios
 8. **Monitor transaction performance** - Watch for long-running transactions
 
-All these patterns work seamlessly with our sharding implementation since we provide routing support at the transaction manager level! 🚀
+All patterns integrate with the Galaxy Sharding library through the dual DataSource configuration. See the main README.md for sharding-specific usage examples.

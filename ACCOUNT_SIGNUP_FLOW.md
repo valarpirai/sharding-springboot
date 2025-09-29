@@ -1,27 +1,10 @@
-# Account Signup Flow with Tenant Mapping
+# Account Signup Flow - Implementation Details
 
-## 🎯 **Complete Account Signup Process**
+> 📋 **Note**: For API endpoint examples, see the sample-sharded-app README.md.
 
-The account signup process now creates tenant mapping and properly integrates with the sharding architecture.
+## 🎯 **Detailed Implementation Walkthrough**
 
-## 📋 **Signup Flow Steps**
-
-### **1. Account Creation (Global Database)**
-
-```java
-@Transactional
-public SignupResponse createAccount(SignupRequest request) {
-    // 1. Validate uniqueness
-    validateAccountUniqueness(request);
-
-    // 2. Create account in global database
-    Account account = Account.builder()
-        .name(request.getAccountName())
-        .adminEmail(request.getAdminEmail())
-        .build();
-    account = accountRepository.save(account);
-}
-```
+This guide covers the internal mechanics of the account signup process beyond the basic API usage.
 
 ### **2. Tenant Mapping Creation**
 
@@ -103,33 +86,12 @@ All tenant-specific data is stored in the designated shard:
 - **status** - Ticket statuses per tenant
 - **tickets** - Support tickets per tenant
 
-## 🚀 **API Usage Example**
+## 📊 **Performance Considerations**
 
-### **Account Signup Request**
-
-```bash
-curl -X POST http://localhost:8080/api/signup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "accountName": "Acme Corporation",
-    "adminEmail": "admin@acme.com",
-    "password": "securePassword123"
-  }'
-```
-
-### **Response**
-
-```json
-{
-  "success": true,
-  "accountId": 5,
-  "accountName": "Acme Corporation",
-  "adminEmail": "admin@acme.com",
-  "adminUserId": 15,
-  "adminUserName": "Admin User",
-  "createdAt": "2023-12-07T10:30:00Z"
-}
-```
+### **Async Processing Benefits**
+- Demo setup runs in background thread pool
+- Immediate API response for better UX
+- Failure isolation - signup succeeds even if demo setup fails
 
 ## 🔄 **What Happens Behind the Scenes**
 

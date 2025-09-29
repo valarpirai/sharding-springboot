@@ -1,16 +1,14 @@
-# @Transactional with Sharding - Complete Guide
+# @Transactional with Sharding - Advanced Patterns
 
-## 🎯 **How @Transactional Works with Our Sharding Implementation**
+> 📋 **Note**: This guide covers advanced transaction patterns. For basic @Transactional usage, see the main README.md.
 
-Our sharding library provides **automatic transaction routing** with **dual DataSource support** for seamless handling of global and sharded operations.
+## 🎯 **Advanced Transaction Patterns with Sharding**
 
-## ⚠️ **Important: Dual DataSource Transaction Limitations**
+This guide focuses on complex transaction scenarios beyond basic @Transactional usage.
 
-With dual DataSource configuration, **@Transactional cannot span both global and sharded operations** in a single method. Each DataSource has its own transaction manager:
+## ⚠️ **Cross-DataSource Transaction Coordination**
 
-- **Global entities**: Use `globalTransactionManager`
-- **Sharded entities**: Use `shardedTransactionManager` (primary)
-- **Cross-DataSource operations**: Require manual transaction coordination
+When working with both global and sharded entities in the same business operation:
 
 ## 📋 **Architecture Overview**
 
@@ -142,33 +140,35 @@ return getOrCreateTransactionManager(globalDataSource);
 
 ## 🚀 **Usage Examples**
 
-### **✅ Sharded Entity Operations**
+### **✅ Complex Sharded Transaction Example**
 ```java
 @Service
-public class TicketService {
+public class AdvancedTicketService {
 
-    @Transactional
-    public Ticket createTicketWithAssignment(CreateTicketRequest request, Long tenantId) {
-        // All operations automatically routed to same shard
-
-        // 1. Check requester exists (User is @ShardedEntity)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public Ticket createTicketWithWorkflow(CreateTicketRequest request, Long tenantId) {
+        // Complex multi-step workflow in single shard transaction
         User requester = userRepository.findById(request.getRequesterId())
             .orElseThrow(() -> new IllegalArgumentException("Requester not found"));
 
-        // 2. Get default status (Status is @ShardedEntity)
-        Status defaultStatus = statusRepository.findByIsDefaultTrue()
-            .orElseThrow(() -> new IllegalStateException("No default status"));
+        // Advanced workflow logic
+        Status initialStatus = determineInitialStatus(request, requester);
+        User autoAssignee = findAutoAssignee(request.getCategory());
 
-        // 3. Create ticket (Ticket is @ShardedEntity)
         Ticket ticket = Ticket.builder()
             .accountId(tenantId)
             .subject(request.getSubject())
             .requesterId(requester.getId())
-            .statusId(defaultStatus.getId())
+            .statusId(initialStatus.getId())
+            .responderId(autoAssignee != null ? autoAssignee.getId() : null)
             .build();
 
-        // 4. Save ticket - all in same transaction on same shard!
-        return ticketRepository.save(ticket);
+        ticket = ticketRepository.save(ticket);
+
+        // Create workflow history
+        workflowHistoryRepository.save(new WorkflowHistory(ticket, "CREATED"));
+
+        return ticket;
     }
 }
 ```

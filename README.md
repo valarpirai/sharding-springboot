@@ -92,23 +92,10 @@ app.sharding.validation.strictness=STRICT
 app.sharding.tenant-column-names=tenant_id,company_id
 ```
 
-**MySQL Configuration (Alternative):**
-```properties
-# Global Database
-app.sharding.global-db.url=jdbc:mysql://localhost:3306/global_db
-app.sharding.global-db.username=global_user
-app.sharding.global-db.password=global_password
-
-# Shard Configuration
-app.sharding.shards.shard1.master.url=jdbc:mysql://localhost:3306/shard1_db
-app.sharding.shards.shard1.replicas.replica1.url=jdbc:mysql://localhost:3307/shard1_db
-app.sharding.shards.shard1.hikari.maximum-pool-size=20
-app.sharding.shards.shard1.latest=true
-
-# Validation (same for all databases)
-app.sharding.validation.strictness=STRICT
-app.sharding.tenant-column-names=tenant_id,company_id
-```
+**Alternative Database Support:**
+- Full MySQL 5.7+ support with optimizations
+- Full PostgreSQL 11+ support with optimizations
+- Automatic database type detection from JDBC URLs
 
 ### Maven Dependency
 
@@ -205,66 +192,33 @@ The library automatically detects the database type from JDBC URLs and applies a
 - **RANDOM**: Random replica selection
 - **FIRST_AVAILABLE**: Always use first replica
 
-## 🔧 Development Workflow
+## 🚀 Quick Start
 
-### Building the Project
 ```bash
-# Build all modules
-mvn clean compile
-
-# Run tests (currently skipped due to test compatibility issues)
-mvn install -Dmaven.test.skip=true
-
-# Build and install to local repository
+# 1. Build the sharding library
 mvn clean install -Dmaven.test.skip=true
 
-# Set up PostgreSQL databases
+# 2. Set up databases
 cd sample-sharded-app
-psql -U postgres -f database-setup-postgresql.sql
+psql -U postgres -f database-setup.sql
 
-# Run the sample application
+# 3. Run the sample application
 mvn spring-boot:run
+
+# 4. Access API documentation
+open http://localhost:8080/swagger-ui/
 ```
 
-### Entity Development
-1. Annotate entity with `@ShardedEntity`
-2. Include tenant column (`tenant_id` or `company_id`)
-3. Library validates at startup and runtime
+## 📄 Additional Documentation
 
-### Query Development
-1. Queries automatically validated for tenant filtering
-2. Configurable strictness prevents data leakage
-3. Clear error messages for missing tenant conditions
-
-### Background Jobs
-```java
-@Component
-public class ReportGenerator {
-
-    private final TenantIterator tenantIterator;
-
-    public void generateReports() {
-        tenantIterator.processAllTenants(this::generateReport, 10); // Batch size 10
-    }
-
-    private void generateReport(Long tenantId) {
-        // Tenant context automatically set
-        // Database operations routed to correct shard
-    }
-}
-```
-
-### Monitoring
-```java
-@RestController
-public class ShardingMonitorController {
-
-    @GetMapping("/sharding/stats")
-    public ShardStatistics getStats() {
-        return shardUtils.getShardStatistics();
-    }
-}
-```
+- **[Transaction Patterns](TRANSACTIONAL_SHARDING_GUIDE.md)** - Advanced @Transactional usage patterns
+- **[Account Signup Flow](ACCOUNT_SIGNUP_FLOW.md)** - Detailed signup implementation
+- **[OpenTelemetry Integration](OPENTELEMETRY_INTEGRATION_GUIDE.md)** - Observability setup
+- **[Custom Shard Lookup](CUSTOM_SHARD_LOOKUP_GUIDE.md)** - Custom lookup implementations
+- **[Spring Transaction Reference](SPRING_TRANSACTION_PATTERNS_GUIDE.md)** - Complete transaction pattern guide
+- **[Library Specification](sharding-springboot-starter/SPECIFICATION.md)** - Technical specifications
+- **[Sample App Guide](sample-sharded-app/README.md)** - Complete demo application
+- **[Database Setup](sample-sharded-app/DATABASE_SETUP.md)** - Database configuration
 
 ## 🚀 Production Deployment
 

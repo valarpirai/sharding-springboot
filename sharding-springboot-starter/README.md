@@ -33,90 +33,30 @@ A comprehensive Spring Boot auto-configuration library for multi-tenant database
 
 ### 2. Configure Application Properties
 
-**MySQL Configuration:**
+**Basic Configuration:**
 ```properties
-# Global Database (for tenant_shard_mapping table)
-app.sharding.global-db.url=jdbc:mysql://localhost:3306/global_db
-app.sharding.global-db.username=global_user
-app.sharding.global-db.password=global_password
-app.sharding.global-db.hikari.maximum-pool-size=10
-
-# Shard 1 - Latest shard for new signups
-app.sharding.shard1.master.url=jdbc:mysql://localhost:3306/shard1_db
-app.sharding.shard1.master.username=shard1_user
-app.sharding.shard1.master.password=shard1_password
-
-app.sharding.shard1.replica1.url=jdbc:mysql://localhost:3307/shard1_db
-app.sharding.shard1.replica1.username=shard1_user
-app.sharding.shard1.replica1.password=shard1_password
-
-app.sharding.shard1.hikari.maximum-pool-size=20
-app.sharding.shard1.hikari.minimum-idle=5
-app.sharding.shard1.latest=true
-
-# Shard 2
-app.sharding.shard2.master.url=jdbc:mysql://localhost:3309/shard2_db
-app.sharding.shard2.master.username=shard2_user
-app.sharding.shard2.master.password=shard2_password
-app.sharding.shard2.hikari.maximum-pool-size=15
-
-# Tenant Configuration
-app.sharding.tenant-column-names=tenant_id,company_id
-app.sharding.validation.strictness=STRICT
-
-# Caching Configuration (optional - improves performance)
-app.sharding.cache.enabled=true
-app.sharding.cache.type=CAFFEINE
-app.sharding.cache.ttl-hours=1
-
-# Dual DataSource Configuration (optional - separates global and sharded entities)
-app.sharding.dual-datasource.enabled=true
-app.sharding.dual-datasource.global-repository-base-package=**.repository.global
-app.sharding.dual-datasource.sharded-repository-base-package=**.repository.sharded
-app.sharding.dual-datasource.global-entity-base-package=**.entity.global
-app.sharding.dual-datasource.sharded-entity-base-package=**.entity.sharded
-```
-
-**PostgreSQL Configuration:**
-```properties
-# Global Database (for tenant_shard_mapping table)
+# Global Database
 app.sharding.global-db.url=jdbc:postgresql://localhost:5432/global_db
 app.sharding.global-db.username=global_user
 app.sharding.global-db.password=global_password
-app.sharding.global-db.hikari.maximum-pool-size=10
 
-# Shard 1 - Latest shard for new signups
+# Shard Configuration
 app.sharding.shard1.master.url=jdbc:postgresql://localhost:5432/shard1_db
 app.sharding.shard1.master.username=shard1_user
 app.sharding.shard1.master.password=shard1_password
-
-app.sharding.shard1.replica1.url=jdbc:postgresql://localhost:5433/shard1_db
-app.sharding.shard1.replica1.username=shard1_user
-app.sharding.shard1.replica1.password=shard1_password
-
-# Database-specific optimizations applied automatically
-app.sharding.shard1.hikari.maximum-pool-size=20
-app.sharding.shard1.hikari.minimum-idle=5
 app.sharding.shard1.latest=true
 
 # Tenant Configuration
 app.sharding.tenant-column-names=tenant_id,company_id
 app.sharding.validation.strictness=STRICT
-
-# Caching Configuration (optional - improves performance)
-app.sharding.cache.enabled=true
-app.sharding.cache.type=REDIS
-app.sharding.cache.ttl-hours=1
-app.sharding.cache.redis-host=localhost
-app.sharding.cache.redis-port=6379
-
-# Dual DataSource Configuration (optional - separates global and sharded entities)
-app.sharding.dual-datasource.enabled=true
-app.sharding.dual-datasource.global-repository-base-package=**.repository.global
-app.sharding.dual-datasource.sharded-repository-base-package=**.repository.sharded
-app.sharding.dual-datasource.global-entity-base-package=**.entity.global
-app.sharding.dual-datasource.sharded-entity-base-package=**.entity.sharded
 ```
+
+**Advanced Configuration Features:**
+- Read replicas: Add `replica1`, `replica2` URLs per shard
+- Caching: Caffeine (in-memory) or Redis (distributed)
+- Connection pooling: Full HikariCP configuration support
+- Database support: MySQL 5.7+ and PostgreSQL 11+ with auto-detection
+- Dual DataSource: Separate global/sharded entity routing
 
 ### 3. Annotate Your Entities
 
