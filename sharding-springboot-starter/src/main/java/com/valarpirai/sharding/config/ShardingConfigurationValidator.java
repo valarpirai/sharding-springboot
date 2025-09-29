@@ -185,8 +185,7 @@ public class ShardingConfigurationValidator implements ApplicationListener<Appli
 
         entityValidator.validateAllEntities();
 
-        EntityValidator.EntityValidationSummary summary = entityValidator.getValidationSummary();
-        logger.info("Entity validation completed: {}", summary);
+        logger.info("Entity validation completed successfully");
     }
 
     /**

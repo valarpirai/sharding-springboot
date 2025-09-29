@@ -161,14 +161,7 @@ public class EntityValidator {
         Column columnAnnotation = field.getAnnotation(Column.class);
         if (columnAnnotation != null && columnAnnotation.nullable()) {
             logger.warn("Tenant field {} in entity {} is marked as nullable. " +
-                       "Consider making it non-nullable for better data integrity.",
-                       field.getName(), entityClass.getSimpleName());
-        }
-
-        // Check for @NotNull annotation
-        if (field.getAnnotation(javax.validation.constraints.NotNull.class) == null &&
-            field.getAnnotation(org.jetbrains.annotations.NotNull.class) == null) {
-            logger.info("Consider adding @NotNull annotation to tenant field {} in entity {} for validation",
+                       "Consider making it non-nullable (@Column(nullable = false)) for better data integrity.",
                        field.getName(), entityClass.getSimpleName());
         }
     }
@@ -272,7 +265,6 @@ public class EntityValidator {
                                                                  applicationContext.getClassLoader());
                         if (isJpaEntity(entityClass)) {
                             entityClasses.add(entityClass);
-                            logger.debug("Found entity class via package scanning: {}", entityClass.getName());
                         }
                     } catch (ClassNotFoundException e) {
                         logger.debug("Could not load class for entity scanning: {}", beanDefinition.getBeanClassName());
@@ -297,26 +289,6 @@ public class EntityValidator {
     }
 
     /**
-     * Get validation summary for logging/monitoring.
-     */
-    public EntityValidationSummary getValidationSummary() {
-        Set<Class<?>> entityClasses = findAllEntityClasses();
-
-        long shardedEntities = entityClasses.stream()
-            .filter(clazz -> clazz.isAnnotationPresent(ShardedEntity.class))
-            .count();
-
-        long nonShardedEntities = entityClasses.size() - shardedEntities;
-
-        return new EntityValidationSummary(
-            entityClasses.size(),
-            shardedEntities,
-            nonShardedEntities,
-            shardingConfig.getTenantColumnNames()
-        );
-    }
-
-    /**
      * Entity validation error container.
      */
     public static class EntityValidationError {
@@ -330,38 +302,5 @@ public class EntityValidator {
 
         public Class<?> getEntityClass() { return entityClass; }
         public String getMessage() { return message; }
-    }
-
-    /**
-     * Entity validation summary.
-     */
-    public static class EntityValidationSummary {
-        private final long totalEntities;
-        private final long shardedEntities;
-        private final long nonShardedEntities;
-        private final List<String> tenantColumnNames;
-
-        public EntityValidationSummary(long totalEntities, long shardedEntities,
-                                     long nonShardedEntities, List<String> tenantColumnNames) {
-            this.totalEntities = totalEntities;
-            this.shardedEntities = shardedEntities;
-            this.nonShardedEntities = nonShardedEntities;
-            this.tenantColumnNames = tenantColumnNames;
-        }
-
-        public long getTotalEntities() { return totalEntities; }
-        public long getShardedEntities() { return shardedEntities; }
-        public long getNonShardedEntities() { return nonShardedEntities; }
-        public List<String> getTenantColumnNames() { return tenantColumnNames; }
-
-        @Override
-        public String toString() {
-            return "EntityValidationSummary{" +
-                   "totalEntities=" + totalEntities +
-                   ", shardedEntities=" + shardedEntities +
-                   ", nonShardedEntities=" + nonShardedEntities +
-                   ", tenantColumnNames=" + tenantColumnNames +
-                   '}';
-        }
     }
 }
