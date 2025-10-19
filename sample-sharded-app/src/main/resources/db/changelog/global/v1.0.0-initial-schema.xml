@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="1" author="system" context="global">
+        <comment>Create accounts table</comment>
+        <createTable tableName="accounts">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="admin_email" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="accounts"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="2" author="system" context="global">
+        <comment>Create tenant_shard_mapping table</comment>
+        <createTable tableName="tenant_shard_mapping">
+            <column name="tenant_id" type="BIGINT">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="shard_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="region" type="VARCHAR(255)"/>
+            <column name="shard_status" type="VARCHAR(50)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_shard_id" tableName="tenant_shard_mapping">
+            <column name="shard_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_shard_id" tableName="tenant_shard_mapping"/>
+            <dropTable tableName="tenant_shard_mapping"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="3" author="system" context="global">
+        <comment>Create global_config table</comment>
+        <createTable tableName="global_config">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="config_key" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="config_value" type="TEXT"/>
+            <column name="description" type="TEXT"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="global_config"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

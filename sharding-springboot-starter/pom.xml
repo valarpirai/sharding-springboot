@@ -137,6 +137,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Liquibase for schema migrations -->
+        <dependency>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
+        </dependency>
+
         <!-- Optional dependencies for database drivers -->
         <dependency>
             <groupId>org.postgresql</groupId>

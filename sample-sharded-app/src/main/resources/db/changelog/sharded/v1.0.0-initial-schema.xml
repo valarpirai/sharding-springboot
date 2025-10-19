@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="1" author="system" context="sharded">
+        <comment>Create roles table</comment>
+        <createTable tableName="roles">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="account_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permissions_mask" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false"/>
+        </createTable>
+
+        <createIndex indexName="idx_roles_account_id" tableName="roles">
+            <column name="account_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_roles_account_id" tableName="roles"/>
+            <dropTable tableName="roles"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="2" author="system" context="sharded">
+        <comment>Create users table</comment>
+        <createTable tableName="users">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="account_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="first_name" type="VARCHAR(100)"/>
+            <column name="last_name" type="VARCHAR(100)"/>
+            <column name="role_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false"/>
+        </createTable>
+
+        <createIndex indexName="idx_users_account_id" tableName="users">
+            <column name="account_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_users_email" tableName="users">
+            <column name="email"/>
+        </createIndex>
+
+        <addForeignKeyConstraint
+                constraintName="fk_users_role"
+                baseTableName="users"
+                baseColumnNames="role_id"
+                referencedTableName="roles"
+                referencedColumnNames="id"/>
+
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="users" constraintName="fk_users_role"/>
+            <dropIndex indexName="idx_users_email" tableName="users"/>
+            <dropIndex indexName="idx_users_account_id" tableName="users"/>
+            <dropTable tableName="users"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="3" author="system" context="sharded">
+        <comment>Create statuses table</comment>
+        <createTable tableName="statuses">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="account_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="color" type="VARCHAR(7)"/>
+            <column name="sort_order" type="INTEGER" defaultValue="0"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false"/>
+        </createTable>
+
+        <createIndex indexName="idx_statuses_account_id" tableName="statuses">
+            <column name="account_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_statuses_account_id" tableName="statuses"/>
+            <dropTable tableName="statuses"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="4" author="system" context="sharded">
+        <comment>Create tickets table</comment>
+        <createTable tableName="tickets">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="account_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subject" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="requester_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="responder_id" type="BIGINT"/>
+            <column name="status_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false"/>
+        </createTable>
+
+        <createIndex indexName="idx_tickets_account_id" tableName="tickets">
+            <column name="account_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_tickets_requester" tableName="tickets">
+            <column name="requester_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_tickets_responder" tableName="tickets">
+            <column name="responder_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_tickets_status" tableName="tickets">
+            <column name="status_id"/>
+        </createIndex>
+
+        <addForeignKeyConstraint
+                constraintName="fk_tickets_requester"
+                baseTableName="tickets"
+                baseColumnNames="requester_id"
+                referencedTableName="users"
+                referencedColumnNames="id"/>
+
+        <addForeignKeyConstraint
+                constraintName="fk_tickets_responder"
+                baseTableName="tickets"
+                baseColumnNames="responder_id"
+                referencedTableName="users"
+                referencedColumnNames="id"/>
+
+        <addForeignKeyConstraint
+                constraintName="fk_tickets_status"
+                baseTableName="tickets"
+                baseColumnNames="status_id"
+                referencedTableName="statuses"
+                referencedColumnNames="id"/>
+
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="tickets" constraintName="fk_tickets_status"/>
+            <dropForeignKeyConstraint baseTableName="tickets" constraintName="fk_tickets_responder"/>
+            <dropForeignKeyConstraint baseTableName="tickets" constraintName="fk_tickets_requester"/>
+            <dropIndex indexName="idx_tickets_status" tableName="tickets"/>
+            <dropIndex indexName="idx_tickets_responder" tableName="tickets"/>
+            <dropIndex indexName="idx_tickets_requester" tableName="tickets"/>
+            <dropIndex indexName="idx_tickets_account_id" tableName="tickets"/>
+            <dropTable tableName="tickets"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

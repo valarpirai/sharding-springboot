@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="5" author="system" context="sharded">
+        <comment>Add priority column to tickets table</comment>
+        <addColumn tableName="tickets">
+            <column name="priority" type="VARCHAR(20)" defaultValue="MEDIUM">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="tickets" columnName="priority"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="6" author="system" context="sharded">
+        <comment>Create index on ticket priority and status</comment>
+        <createIndex indexName="idx_tickets_priority_status" tableName="tickets">
+            <column name="priority"/>
+            <column name="status_id"/>
+            <column name="deleted"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_tickets_priority_status" tableName="tickets"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="7" author="system" context="sharded">
+        <comment>Add due_date column to tickets</comment>
+        <addColumn tableName="tickets">
+            <column name="due_date" type="TIMESTAMP"/>
+        </addColumn>
+
+        <createIndex indexName="idx_tickets_due_date" tableName="tickets">
+            <column name="due_date"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_tickets_due_date" tableName="tickets"/>
+            <dropColumn tableName="tickets" columnName="due_date"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="4" author="system" context="global">
+        <comment>Add status column to accounts table</comment>
+        <addColumn tableName="accounts">
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="accounts" columnName="status"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="5" author="system" context="global">
+        <comment>Add index on account status</comment>
+        <createIndex indexName="idx_account_status" tableName="accounts">
+            <column name="status"/>
+            <column name="deleted"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_account_status" tableName="accounts"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
