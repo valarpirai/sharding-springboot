@@ -211,11 +211,17 @@ open http://localhost:8080/swagger-ui/
 
 ## 📄 Additional Documentation
 
-- **[Transaction Patterns](TRANSACTIONAL_SHARDING_GUIDE.md)** - Advanced @Transactional usage patterns
-- **[Account Signup Flow](ACCOUNT_SIGNUP_FLOW.md)** - Detailed signup implementation
-- **[OpenTelemetry Integration](OPENTELEMETRY_INTEGRATION_GUIDE.md)** - Observability setup
-- **[Custom Shard Lookup](CUSTOM_SHARD_LOOKUP_GUIDE.md)** - Custom lookup implementations
-- **[Spring Transaction Reference](SPRING_TRANSACTION_PATTERNS_GUIDE.md)** - Complete transaction pattern guide
+### Core Documentation
+- **[Migration Guide](doc/MIGRATION_GUIDE.md)** - Complete Liquibase migration guide with strategies
+- **[Idempotency Guide](doc/IDEMPOTENCY.md)** - Understanding migration idempotency
+- **[Zero-Downtime Best Practices](doc/ZERO_DOWNTIME_BEST_PRACTICES.md)** - PayPal-inspired zero-downtime strategies
+- **[Transaction Guide](doc/TRANSACTION_GUIDE.md)** - Transaction patterns for sharded databases
+
+### Implementation Guides
+- **[Account Signup Flow](doc/ACCOUNT_SIGNUP_FLOW.md)** - Detailed signup implementation
+- **[Custom Shard Lookup](doc/CUSTOM_SHARD_LOOKUP_GUIDE.md)** - Custom lookup implementations
+
+### Module Documentation
 - **[Library Specification](sharding-springboot-starter/SPECIFICATION.md)** - Technical specifications
 - **[Sample App Guide](sample-sharded-app/README.md)** - Complete demo application
 - **[Database Setup](sample-sharded-app/DATABASE_SETUP.md)** - Database configuration

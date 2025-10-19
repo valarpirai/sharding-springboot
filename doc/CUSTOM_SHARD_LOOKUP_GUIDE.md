@@ -2,7 +2,7 @@
 
 ## 🎯 **Overview**
 
-The Galaxy Sharding library allows you to provide your own custom implementation of the `ITenantShardMappingRepo` interface to override the default database-backed shard lookup behavior. This enables you to integrate with external systems, implement custom sharding algorithms, or use different data stores for tenant-to-shard mappings.
+The sharding-springboot library allows you to provide your own custom implementation of the `ITenantShardMappingRepo` interface to override the default database-backed shard lookup behavior. This enables you to integrate with external systems, implement custom sharding algorithms, or use different data stores for tenant-to-shard mappings.
 
 ## 📋 **Architecture**
 
@@ -360,4 +360,4 @@ public class ObservableCustomShardLookupService implements ITenantShardMappingRe
 }
 ```
 
-By implementing the `ITenantShardMappingRepo` interface, you have complete control over how tenant-to-shard mappings are resolved while maintaining full integration with the Galaxy Sharding library's features and Spring Boot ecosystem! 🚀
+By implementing the `ITenantShardMappingRepo` interface, you have complete control over how tenant-to-shard mappings are resolved while maintaining full integration with the sharding-springboot library's features and Spring Boot ecosystem! 🚀
