@@ -38,16 +38,19 @@ public class LiquibaseMigrationOrchestrator {
     private final ShardingConfigProperties shardingProperties;
     private final MigrationProgressTracker progressTracker;
     private final LiquibaseMigrationConfig migrationConfig;
+    private final MigrationLockManager lockManager;
     private final ExecutorService executorService;
 
     @Autowired
     public LiquibaseMigrationOrchestrator(
             ShardingConfigProperties shardingProperties,
             MigrationProgressTracker progressTracker,
-            LiquibaseMigrationConfig migrationConfig) {
+            LiquibaseMigrationConfig migrationConfig,
+            MigrationLockManager lockManager) {
         this.shardingProperties = shardingProperties;
         this.progressTracker = progressTracker;
         this.migrationConfig = migrationConfig;
+        this.lockManager = lockManager;
         this.executorService = Executors.newFixedThreadPool(
                 migrationConfig.getParallelThreads()
         );
@@ -55,8 +58,15 @@ public class LiquibaseMigrationOrchestrator {
 
     /**
      * Execute migrations on all shards using the specified strategy.
+     * This method is idempotent - calling it multiple times will not cause issues.
+     * Already-executed changesets will be skipped automatically by Liquibase.
      */
     public MigrationReport migrateAll(MigrationStrategy strategy) {
+        // Try to acquire lock to prevent concurrent executions
+        if (!lockManager.tryAcquireLock()) {
+            throw new MigrationException("Migration already in progress. Cannot start concurrent migration.");
+        }
+
         log.info("Starting migration with strategy: {}", strategy);
 
         MigrationReport report = new MigrationReport();
@@ -93,6 +103,7 @@ public class LiquibaseMigrationOrchestrator {
             throw new MigrationException("Migration execution failed", e);
         } finally {
             report.complete();
+            lockManager.releaseLock();
         }
 
         log.info("Migration completed: {} successful, {} failed, {} skipped in {}ms",
@@ -440,6 +451,11 @@ public class LiquibaseMigrationOrchestrator {
             throw new MigrationException("Rollback is not enabled. Set app.sharding.migration.allow-rollback=true");
         }
 
+        // Try to acquire lock to prevent concurrent executions
+        if (!lockManager.tryAcquireLock()) {
+            throw new MigrationException("Migration or rollback already in progress. Cannot start concurrent operation.");
+        }
+
         log.info("Starting rollback with type: {}", request.getType());
 
         MigrationReport report = new MigrationReport();
@@ -472,6 +488,7 @@ public class LiquibaseMigrationOrchestrator {
             throw new MigrationException("Rollback execution failed", e);
         } finally {
             report.complete();
+            lockManager.releaseLock();
         }
 
         log.info("Rollback completed: {} successful, {} failed in {}ms",

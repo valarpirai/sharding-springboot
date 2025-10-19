@@ -28,10 +28,12 @@ public class MigrationController {
 
     /**
      * Execute migrations on all shards using specified strategy.
+     * This endpoint is idempotent - already-executed changesets will be skipped.
+     * However, concurrent executions are prevented for safety.
      */
     @PostMapping("/execute")
     @Operation(summary = "Execute migrations", description = "Run migrations on all shards using the specified strategy")
-    public ResponseEntity<MigrationReport> executeMigration(
+    public ResponseEntity<?> executeMigration(
             @RequestParam(defaultValue = "WAVE") MigrationStrategy strategy) {
 
         log.info("Received migration request with strategy: {}", strategy);
@@ -39,9 +41,22 @@ public class MigrationController {
         try {
             MigrationReport report = migrationOrchestrator.migrateAll(strategy);
             return ResponseEntity.ok(report);
+        } catch (MigrationException e) {
+            if (e.getMessage().contains("already in progress")) {
+                log.warn("Migration already in progress");
+                return ResponseEntity.status(409) // Conflict
+                        .body(Map.of(
+                                "error", "MIGRATION_IN_PROGRESS",
+                                "message", e.getMessage()
+                        ));
+            }
+            log.error("Migration failed: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             log.error("Migration execution failed", e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Internal server error: " + e.getMessage()));
         }
     }
 
@@ -102,7 +117,7 @@ public class MigrationController {
      */
     @PostMapping("/rollback")
     @Operation(summary = "Rollback migrations", description = "Rollback migrations on specified shards (use with caution)")
-    public ResponseEntity<MigrationReport> rollbackMigration(@RequestBody RollbackRequest request) {
+    public ResponseEntity<?> rollbackMigration(@RequestBody RollbackRequest request) {
         log.warn("Received rollback request: type={}, count={}, tag={}",
                  request.getType(), request.getCount(), request.getTag());
 
@@ -110,11 +125,21 @@ public class MigrationController {
             MigrationReport report = migrationOrchestrator.rollback(request);
             return ResponseEntity.ok(report);
         } catch (MigrationException e) {
-            log.error("Rollback failed", e);
-            return ResponseEntity.badRequest().build();
+            if (e.getMessage().contains("already in progress")) {
+                log.warn("Migration/rollback already in progress");
+                return ResponseEntity.status(409) // Conflict
+                        .body(Map.of(
+                                "error", "OPERATION_IN_PROGRESS",
+                                "message", e.getMessage()
+                        ));
+            }
+            log.error("Rollback failed: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             log.error("Rollback execution failed", e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Internal server error: " + e.getMessage()));
         }
     }
 

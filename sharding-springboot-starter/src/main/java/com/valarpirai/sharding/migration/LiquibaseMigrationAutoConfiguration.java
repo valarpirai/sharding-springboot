@@ -26,16 +26,24 @@ public class LiquibaseMigrationAutoConfiguration {
     }
 
     @Bean
+    public MigrationLockManager migrationLockManager() {
+        log.info("Initializing MigrationLockManager");
+        return new MigrationLockManager();
+    }
+
+    @Bean
     public LiquibaseMigrationOrchestrator liquibaseMigrationOrchestrator(
             ShardingConfigProperties shardingProperties,
             MigrationProgressTracker progressTracker,
-            LiquibaseMigrationConfig migrationConfig) {
+            LiquibaseMigrationConfig migrationConfig,
+            MigrationLockManager lockManager) {
         log.info("Initializing LiquibaseMigrationOrchestrator with strategy: {}",
                  migrationConfig.getDefaultStrategy());
         return new LiquibaseMigrationOrchestrator(
                 shardingProperties,
                 progressTracker,
-                migrationConfig
+                migrationConfig,
+                lockManager
         );
     }
 
