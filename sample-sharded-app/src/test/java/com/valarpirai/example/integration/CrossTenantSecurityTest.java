@@ -1,6 +1,7 @@
 package com.valarpirai.example.integration;
 
 import com.valarpirai.example.entity.global.Account;
+import com.valarpirai.example.entity.global.Priority;
 import com.valarpirai.example.entity.sharded.Role;
 import com.valarpirai.example.entity.sharded.Status;
 import com.valarpirai.example.entity.sharded.Ticket;
@@ -66,14 +67,14 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldPreventCrossTenantUserRead() {
         // Tenant 1 creates users
-        Long tenant1UserId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long tenant1UserId = executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             User user = createUser(tenant1.getId(), "secret@tenant1.com", "Secret", "User1", role.getId());
             return user.getId();
         });
 
         // Tenant 2 attempts to read Tenant 1's user by ID
-        Optional<User> unauthorizedUser = TenantContext.executeInTenantContext(tenant2.getId(), () ->
+        Optional<User> unauthorizedUser = executeInTenantContext(tenant2.getId(), () ->
                 userRepository.findById(tenant1UserId)
         );
 
@@ -81,7 +82,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         assertThat(unauthorizedUser).isEmpty();
 
         // Tenant 2 attempts to query all users (should only see their own)
-        List<User> tenant2Users = TenantContext.executeInTenantContext(tenant2.getId(), () ->
+        List<User> tenant2Users = executeInTenantContext(tenant2.getId(), () ->
                 userRepository.findByAccountIdAndDeletedFalse(tenant2.getId())
         );
 
@@ -93,13 +94,13 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldPreventCrossTenantDataModification() {
         // Tenant 1 creates a user
-        User tenant1User = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        User tenant1User = executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             return createUser(tenant1.getId(), "protected@tenant1.com", "Protected", "User", role.getId());
         });
 
         // Tenant 2 attempts to modify Tenant 1's user
-        TenantContext.executeInTenantContext(tenant2.getId(), () -> {
+        executeInTenantContext(tenant2.getId(), () -> {
             Optional<User> userToModify = userRepository.findById(tenant1User.getId());
 
             // Should not find the user
@@ -108,7 +109,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         });
 
         // Verify Tenant 1's user remains unchanged
-        User verifyUser = TenantContext.executeInTenantContext(tenant1.getId(), () ->
+        User verifyUser = executeInTenantContext(tenant1.getId(), () ->
                 userRepository.findById(tenant1User.getId()).orElse(null)
         );
 
@@ -122,7 +123,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldPreventCrossTenantDataDeletion() {
         // Tenant 1 creates a ticket
-        Ticket tenant1Ticket = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Ticket tenant1Ticket = executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             Status status = createStatus(tenant1.getId(), "Open", true);
             User user = createUser(tenant1.getId(), "user@tenant1.com", "User", "One", role.getId());
@@ -130,7 +131,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         });
 
         // Tenant 2 attempts to delete Tenant 1's ticket
-        TenantContext.executeInTenantContext(tenant2.getId(), () -> {
+        executeInTenantContext(tenant2.getId(), () -> {
             Optional<Ticket> ticketToDelete = ticketRepository.findById(tenant1Ticket.getId());
 
             // Should not find the ticket
@@ -139,7 +140,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         });
 
         // Verify Tenant 1's ticket still exists
-        Ticket verifyTicket = TenantContext.executeInTenantContext(tenant1.getId(), () ->
+        Ticket verifyTicket = executeInTenantContext(tenant1.getId(), () ->
                 ticketRepository.findById(tenant1Ticket.getId()).orElse(null)
         );
 
@@ -164,14 +165,14 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldPreventSqlInjectionCrossTenantAccess() {
         // Tenant 1 creates a user
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             createUser(tenant1.getId(), "victim@tenant1.com", "Victim", "User", role.getId());
             return null;
         });
 
         // Tenant 2 attempts to query with malicious email (simulating injection)
-        List<User> foundUsers = TenantContext.executeInTenantContext(tenant2.getId(), () -> {
+        List<User> foundUsers = executeInTenantContext(tenant2.getId(), () -> {
             // Even if someone tries to inject, the account_id filter should prevent access
             return userRepository.findByAccountIdAndDeletedFalse(tenant2.getId());
         });
@@ -187,34 +188,34 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         // Simulate concurrent operations from different tenants
 
         // Tenant 1 creates data
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             createUser(tenant1.getId(), "concurrent1@tenant1.com", "Concurrent", "User1", role.getId());
             return null;
         });
 
         // Tenant 2 creates data at "same time"
-        TenantContext.executeInTenantContext(tenant2.getId(), () -> {
+        executeInTenantContext(tenant2.getId(), () -> {
             Role role = createRole(tenant2.getId(), "ADMIN", 0xFFFFFFFFL);
             createUser(tenant2.getId(), "concurrent2@tenant2.com", "Concurrent", "User2", role.getId());
             return null;
         });
 
         // Tenant 3 creates data at "same time"
-        TenantContext.executeInTenantContext(tenant3.getId(), () -> {
+        executeInTenantContext(tenant3.getId(), () -> {
             Role role = createRole(tenant3.getId(), "ADMIN", 0xFFFFFFFFL);
             createUser(tenant3.getId(), "concurrent3@tenant3.com", "Concurrent", "User3", role.getId());
             return null;
         });
 
         // Verify each tenant sees only their own data
-        List<User> tenant1Users = TenantContext.executeInTenantContext(tenant1.getId(), () ->
+        List<User> tenant1Users = executeInTenantContext(tenant1.getId(), () ->
                 userRepository.findByAccountIdAndDeletedFalse(tenant1.getId())
         );
-        List<User> tenant2Users = TenantContext.executeInTenantContext(tenant2.getId(), () ->
+        List<User> tenant2Users = executeInTenantContext(tenant2.getId(), () ->
                 userRepository.findByAccountIdAndDeletedFalse(tenant2.getId())
         );
-        List<User> tenant3Users = TenantContext.executeInTenantContext(tenant3.getId(), () ->
+        List<User> tenant3Users = executeInTenantContext(tenant3.getId(), () ->
                 userRepository.findByAccountIdAndDeletedFalse(tenant3.getId())
         );
 
@@ -233,7 +234,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldPreventAccessToSoftDeletedDataFromOtherTenants() {
         // Tenant 1 creates and soft-deletes a user
-        Long deletedUserId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long deletedUserId = executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             User user = createUser(tenant1.getId(), "deleted@tenant1.com", "Deleted", "User", role.getId());
             user.delete(); // Soft delete
@@ -242,7 +243,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         });
 
         // Tenant 2 attempts to access the soft-deleted user
-        Optional<User> unauthorizedAccess = TenantContext.executeInTenantContext(tenant2.getId(), () ->
+        Optional<User> unauthorizedAccess = executeInTenantContext(tenant2.getId(), () ->
                 userRepository.findById(deletedUserId)
         );
 
@@ -250,7 +251,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         assertThat(unauthorizedAccess).isEmpty();
 
         // Even Tenant 1 should not see it in normal queries (soft-deleted)
-        List<User> tenant1ActiveUsers = TenantContext.executeInTenantContext(tenant1.getId(), () ->
+        List<User> tenant1ActiveUsers = executeInTenantContext(tenant1.getId(), () ->
                 userRepository.findByAccountIdAndDeletedFalse(tenant1.getId())
         );
 
@@ -262,14 +263,14 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldEnforceReadOnlyModeWhenEnabled() {
         // Tenant 1 creates initial data
-        Long userId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long userId = executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             User user = createUser(tenant1.getId(), "readonly@tenant1.com", "ReadOnly", "User", role.getId());
             return user.getId();
         });
 
         // Enable read-only mode for Tenant 1
-        TenantContext.executeInReadOnlyTenantContext(tenant1.getId(), () -> {
+        executeInReadOnlyTenantContext(tenant1.getId(), () -> {
             // Can read data
             Optional<User> user = userRepository.findById(userId);
             assertThat(user).isPresent();
@@ -278,7 +279,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         });
 
         // Verify read-only context is properly cleared after execution
-        assertThat(TenantContext.hasTenantContext()).isFalse();
+        assertThat(hasTenantContext()).isFalse();
     }
 
     @Test
@@ -286,12 +287,12 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldValidateAccountIdMatchesTenantContext() {
         // Tenant 1 creates a role
-        Role tenant1Role = TenantContext.executeInTenantContext(tenant1.getId(), () ->
+        Role tenant1Role = executeInTenantContext(tenant1.getId(), () ->
                 createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL)
         );
 
         // Attempt to create a user with mismatched account_id under Tenant 2 context
-        TenantContext.executeInTenantContext(tenant2.getId(), () -> {
+        executeInTenantContext(tenant2.getId(), () -> {
             User user = new User();
             user.setAccountId(tenant1.getId()); // Wrong account ID!
             user.setEmail("mismatch@test.com");
@@ -315,7 +316,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
     @Transactional
     void shouldPreventCrossTenantTicketAssignment() {
         // Tenant 1 creates a ticket and user
-        Long tenant1TicketId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long tenant1TicketId = executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL);
             Status status = createStatus(tenant1.getId(), "Open", true);
             User user = createUser(tenant1.getId(), "requester@tenant1.com", "Requester", "One", role.getId());
@@ -324,7 +325,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         });
 
         // Tenant 2 creates a user who tries to get assigned to Tenant 1's ticket
-        TenantContext.executeInTenantContext(tenant2.getId(), () -> {
+        executeInTenantContext(tenant2.getId(), () -> {
             Role role = createRole(tenant2.getId(), "AGENT", 0xFFFFFFL);
             User tenant2Agent = createUser(tenant2.getId(), "agent@tenant2.com", "Agent", "Two", role.getId());
 
@@ -337,7 +338,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         });
 
         // Verify Tenant 1's ticket remains unmodified
-        Ticket verifyTicket = TenantContext.executeInTenantContext(tenant1.getId(), () ->
+        Ticket verifyTicket = executeInTenantContext(tenant1.getId(), () ->
                 ticketRepository.findById(tenant1TicketId).orElse(null)
         );
 
@@ -389,7 +390,7 @@ class CrossTenantSecurityTest extends BaseIntegrationTest {
         ticket.setDescription("Test ticket description");
         ticket.setRequesterId(requesterId);
         ticket.setStatusId(statusId);
-        ticket.setPriority("MEDIUM");
+        ticket.setPriority(Priority.MEDIUM);
         return ticketRepository.save(ticket);
     }
 }

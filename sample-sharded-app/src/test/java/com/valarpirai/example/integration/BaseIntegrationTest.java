@@ -1,10 +1,14 @@
 package com.valarpirai.example.integration;
 
 import com.valarpirai.sharding.context.TenantContext;
+import com.valarpirai.sharding.context.TenantInfo;
+import com.valarpirai.sharding.lookup.TenantShardMapping;
 import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
+import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -14,6 +18,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
+import java.util.function.Supplier;
 
 /**
  * Base class for integration tests using TestContainers.
@@ -55,6 +60,9 @@ public abstract class BaseIntegrationTest {
 
     @Autowired
     protected JdbcTemplate jdbcTemplate;
+
+    @Autowired(required = false)
+    protected ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
     /**
      * Configure Spring properties dynamically based on TestContainers.
@@ -116,5 +124,61 @@ public abstract class BaseIntegrationTest {
     @AfterEach
     void cleanupTenantContext() {
         TenantContext.clear();
+    }
+
+    /**
+     * Helper method to execute code in a tenant context.
+     * Looks up the shard for the tenant and creates proper TenantInfo.
+     */
+    protected <T> T executeInTenantContext(Long tenantId, Supplier<T> supplier) {
+        // Look up shard mapping
+        TenantShardMapping mapping = tenantShardMappingRepository.findShardByTenantId(tenantId)
+                .orElseThrow(() -> new IllegalStateException("No shard mapping found for tenant: " + tenantId));
+
+        // In tests, we use the routing DataSource from jdbcTemplate
+        // This ensures proper routing through the shard infrastructure
+        DataSource shardDataSource = jdbcTemplate.getDataSource();
+
+        // Create TenantInfo
+        TenantInfo tenantInfo = TenantInfo.create(tenantId, mapping.getShardId(), shardDataSource);
+
+        // Execute in context
+        return TenantContext.executeInTenantContext(tenantInfo, supplier);
+    }
+
+    /**
+     * Helper method to execute code in a tenant context (void return).
+     */
+    protected void executeInTenantContext(Long tenantId, Runnable runnable) {
+        executeInTenantContext(tenantId, () -> {
+            runnable.run();
+            return null;
+        });
+    }
+
+    /**
+     * Helper method to execute code in a read-only tenant context.
+     */
+    protected <T> T executeInReadOnlyTenantContext(Long tenantId, Supplier<T> supplier) {
+        // Look up shard mapping
+        TenantShardMapping mapping = tenantShardMappingRepository.findShardByTenantId(tenantId)
+                .orElseThrow(() -> new IllegalStateException("No shard mapping found for tenant: " + tenantId));
+
+        // In tests, we use the routing DataSource from jdbcTemplate
+        // This ensures proper routing through the shard infrastructure
+        DataSource shardDataSource = jdbcTemplate.getDataSource();
+
+        // Create read-only TenantInfo
+        TenantInfo tenantInfo = TenantInfo.createReadOnly(tenantId, mapping.getShardId(), shardDataSource);
+
+        // Execute in context
+        return TenantContext.executeInTenantContext(tenantInfo, supplier);
+    }
+
+    /**
+     * Check if tenant context is currently set.
+     */
+    protected boolean hasTenantContext() {
+        return TenantContext.getTenantInfo() != null;
     }
 }

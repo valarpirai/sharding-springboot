@@ -53,20 +53,21 @@ class UserControllerApiTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Create test tenants
-        tenant1 = createAccount("API Test Tenant 1", "api1@test.com");
-        tenant2 = createAccount("API Test Tenant 2", "api2@test.com");
+        // Create test tenants with unique emails to avoid conflicts
+        String uniqueId = String.valueOf(System.currentTimeMillis());
+        tenant1 = createAccount("API Test Tenant 1", "api1+" + uniqueId + "@test.com");
+        tenant2 = createAccount("API Test Tenant 2", "api2+" + uniqueId + "@test.com");
 
         // Setup shard mappings
         tenantShardMappingRepository.createMapping(tenant1.getId(), "shard1", "us-east-1");
         tenantShardMappingRepository.createMapping(tenant2.getId(), "shard2", "us-west-2");
 
         // Create admin roles
-        adminRole1 = TenantContext.executeInTenantContext(tenant1.getId(), () ->
+        adminRole1 = executeInTenantContext(tenant1.getId(), () ->
                 createRole(tenant1.getId(), "ADMIN", 0xFFFFFFFFL)
         );
 
-        adminRole2 = TenantContext.executeInTenantContext(tenant2.getId(), () ->
+        adminRole2 = executeInTenantContext(tenant2.getId(), () ->
                 createRole(tenant2.getId(), "ADMIN", 0xFFFFFFFFL)
         );
     }
@@ -76,7 +77,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldGetUsersForTenant() throws Exception {
         // Create users for tenant1
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             createUser(tenant1.getId(), "user1@tenant1.com", "User", "One", adminRole1.getId());
             createUser(tenant1.getId(), "user2@tenant1.com", "User", "Two", adminRole1.getId());
             return null;
@@ -108,7 +109,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldGetUserByIdForSameTenant() throws Exception {
         // Create user for tenant1
-        Long userId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long userId = executeInTenantContext(tenant1.getId(), () -> {
             User user = createUser(tenant1.getId(), "user@tenant1.com", "Test", "User", adminRole1.getId());
             return user.getId();
         });
@@ -129,7 +130,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldReturn404WhenAccessingOtherTenantUser() throws Exception {
         // Create user for tenant1
-        Long userId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long userId = executeInTenantContext(tenant1.getId(), () -> {
             User user = createUser(tenant1.getId(), "user@tenant1.com", "Test", "User", adminRole1.getId());
             return user.getId();
         });
@@ -169,7 +170,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldRejectDuplicateEmailWithinTenant() throws Exception {
         // Create existing user
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             createUser(tenant1.getId(), "existing@tenant1.com", "Existing", "User", adminRole1.getId());
             return null;
         });
@@ -194,7 +195,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldAllowSameEmailAcrossDifferentTenants() throws Exception {
         // Create user for tenant1
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             createUser(tenant1.getId(), "shared@example.com", "User", "One", adminRole1.getId());
             return null;
         });
@@ -221,7 +222,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldUpdateUserForSameTenant() throws Exception {
         // Create user
-        Long userId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long userId = executeInTenantContext(tenant1.getId(), () -> {
             User user = createUser(tenant1.getId(), "user@tenant1.com", "Original", "Name", adminRole1.getId());
             return user.getId();
         });
@@ -245,7 +246,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldReturn404WhenUpdatingOtherTenantUser() throws Exception {
         // Create user for tenant1
-        Long userId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long userId = executeInTenantContext(tenant1.getId(), () -> {
             User user = createUser(tenant1.getId(), "user@tenant1.com", "Test", "User", adminRole1.getId());
             return user.getId();
         });
@@ -267,7 +268,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldSoftDeleteUserForSameTenant() throws Exception {
         // Create user
-        Long userId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long userId = executeInTenantContext(tenant1.getId(), () -> {
             User user = createUser(tenant1.getId(), "user@tenant1.com", "Test", "User", adminRole1.getId());
             return user.getId();
         });
@@ -291,7 +292,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldReturn404WhenDeletingOtherTenantUser() throws Exception {
         // Create user for tenant1
-        Long userId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long userId = executeInTenantContext(tenant1.getId(), () -> {
             User user = createUser(tenant1.getId(), "user@tenant1.com", "Test", "User", adminRole1.getId());
             return user.getId();
         });

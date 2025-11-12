@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.valarpirai.example.dto.TicketCreateRequest;
 import com.valarpirai.example.dto.TicketUpdateRequest;
 import com.valarpirai.example.entity.global.Account;
+import com.valarpirai.example.entity.global.Priority;
 import com.valarpirai.example.entity.sharded.Role;
 import com.valarpirai.example.entity.sharded.Status;
 import com.valarpirai.example.entity.sharded.Ticket;
@@ -62,23 +63,24 @@ class TicketControllerApiTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Create test tenants
-        tenant1 = createAccount("Ticket Test Tenant 1", "ticket1@test.com");
-        tenant2 = createAccount("Ticket Test Tenant 2", "ticket2@test.com");
+        // Create test tenants with unique emails to avoid conflicts
+        String uniqueId = String.valueOf(System.currentTimeMillis());
+        tenant1 = createAccount("Ticket Test Tenant 1", "ticket1+" + uniqueId + "@test.com");
+        tenant2 = createAccount("Ticket Test Tenant 2", "ticket2+" + uniqueId + "@test.com");
 
         // Setup shard mappings
         tenantShardMappingRepository.createMapping(tenant1.getId(), "shard1", "us-east-1");
         tenantShardMappingRepository.createMapping(tenant2.getId(), "shard2", "us-west-2");
 
         // Create roles and users for tenant1
-        requester1 = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        requester1 = executeInTenantContext(tenant1.getId(), () -> {
             Role role = createRole(tenant1.getId(), "REQUESTER", 0xFFFFL);
             openStatus1 = createStatus(tenant1.getId(), "Open", true);
             return createUser(tenant1.getId(), "requester1@tenant1.com", "Requester", "One", role.getId());
         });
 
         // Create roles and users for tenant2
-        requester2 = TenantContext.executeInTenantContext(tenant2.getId(), () -> {
+        requester2 = executeInTenantContext(tenant2.getId(), () -> {
             Role role = createRole(tenant2.getId(), "REQUESTER", 0xFFFFL);
             openStatus2 = createStatus(tenant2.getId(), "Open", true);
             return createUser(tenant2.getId(), "requester2@tenant2.com", "Requester", "Two", role.getId());
@@ -90,7 +92,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldGetTicketsForTenant() throws Exception {
         // Create tickets for tenant1
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             createTicket(tenant1.getId(), "Ticket 1", requester1.getId(), openStatus1.getId());
             createTicket(tenant1.getId(), "Ticket 2", requester1.getId(), openStatus1.getId());
             createTicket(tenant1.getId(), "Ticket 3", requester1.getId(), openStatus1.getId());
@@ -112,7 +114,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldGetTicketByIdForSameTenant() throws Exception {
         // Create ticket for tenant1
-        Long ticketId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long ticketId = executeInTenantContext(tenant1.getId(), () -> {
             Ticket ticket = createTicket(tenant1.getId(), "Test Ticket", requester1.getId(), openStatus1.getId());
             return ticket.getId();
         });
@@ -132,7 +134,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldReturn404WhenAccessingOtherTenantTicket() throws Exception {
         // Create ticket for tenant1
-        Long ticketId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long ticketId = executeInTenantContext(tenant1.getId(), () -> {
             Ticket ticket = createTicket(tenant1.getId(), "Private Ticket", requester1.getId(), openStatus1.getId());
             return ticket.getId();
         });
@@ -153,7 +155,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
         request.setDescription("This is a new ticket");
         request.setRequesterId(requester1.getId());
         request.setStatusId(openStatus1.getId());
-        request.setPriority("HIGH");
+        request.setPriority(Priority.HIGH);
 
         mockMvc.perform(post("/api/tickets")
                         .header("account-id", tenant1.getId())
@@ -175,7 +177,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
         request.setDescription("Attempting to use requester from another tenant");
         request.setRequesterId(requester2.getId()); // Tenant 2's requester
         request.setStatusId(openStatus1.getId());
-        request.setPriority("MEDIUM");
+        request.setPriority(Priority.MEDIUM);
 
         mockMvc.perform(post("/api/tickets")
                         .header("account-id", tenant1.getId())
@@ -189,7 +191,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldUpdateTicketForSameTenant() throws Exception {
         // Create ticket
-        Long ticketId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long ticketId = executeInTenantContext(tenant1.getId(), () -> {
             Ticket ticket = createTicket(tenant1.getId(), "Original Subject", requester1.getId(), openStatus1.getId());
             return ticket.getId();
         });
@@ -198,7 +200,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
         TicketUpdateRequest request = new TicketUpdateRequest();
         request.setSubject("Updated Subject");
         request.setDescription("Updated description");
-        request.setPriority("HIGH");
+        request.setPriority(Priority.HIGH);
 
         mockMvc.perform(put("/api/tickets/" + ticketId)
                         .header("account-id", tenant1.getId())
@@ -215,7 +217,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldReturn404WhenUpdatingOtherTenantTicket() throws Exception {
         // Create ticket for tenant1
-        Long ticketId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long ticketId = executeInTenantContext(tenant1.getId(), () -> {
             Ticket ticket = createTicket(tenant1.getId(), "Secure Ticket", requester1.getId(), openStatus1.getId());
             return ticket.getId();
         });
@@ -236,7 +238,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldSoftDeleteTicketForSameTenant() throws Exception {
         // Create ticket
-        Long ticketId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long ticketId = executeInTenantContext(tenant1.getId(), () -> {
             Ticket ticket = createTicket(tenant1.getId(), "Ticket to Delete", requester1.getId(), openStatus1.getId());
             return ticket.getId();
         });
@@ -259,7 +261,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldGetTicketsByRequester() throws Exception {
         // Create tickets for requester1
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             createTicket(tenant1.getId(), "Ticket A", requester1.getId(), openStatus1.getId());
             createTicket(tenant1.getId(), "Ticket B", requester1.getId(), openStatus1.getId());
             return null;
@@ -279,7 +281,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldGetTicketsByStatus() throws Exception {
         // Create tickets with different statuses
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             createTicket(tenant1.getId(), "Open Ticket 1", requester1.getId(), openStatus1.getId());
             createTicket(tenant1.getId(), "Open Ticket 2", requester1.getId(), openStatus1.getId());
 
@@ -302,17 +304,17 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldGetTicketsByPriority() throws Exception {
         // Create tickets with different priorities
-        TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        executeInTenantContext(tenant1.getId(), () -> {
             Ticket high1 = createTicket(tenant1.getId(), "High 1", requester1.getId(), openStatus1.getId());
-            high1.setPriority("HIGH");
+            high1.setPriority(Priority.HIGH);
             ticketRepository.save(high1);
 
             Ticket high2 = createTicket(tenant1.getId(), "High 2", requester1.getId(), openStatus1.getId());
-            high2.setPriority("HIGH");
+            high2.setPriority(Priority.HIGH);
             ticketRepository.save(high2);
 
             Ticket low = createTicket(tenant1.getId(), "Low", requester1.getId(), openStatus1.getId());
-            low.setPriority("LOW");
+            low.setPriority(Priority.LOW);
             ticketRepository.save(low);
             return null;
         });
@@ -331,14 +333,14 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @Transactional
     void shouldAssignTicketToAgent() throws Exception {
         // Create agent user
-        Long agentId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long agentId = executeInTenantContext(tenant1.getId(), () -> {
             Role agentRole = createRole(tenant1.getId(), "AGENT", 0xFFFFFL);
             User agent = createUser(tenant1.getId(), "agent@tenant1.com", "Agent", "One", agentRole.getId());
             return agent.getId();
         });
 
         // Create ticket
-        Long ticketId = TenantContext.executeInTenantContext(tenant1.getId(), () -> {
+        Long ticketId = executeInTenantContext(tenant1.getId(), () -> {
             Ticket ticket = createTicket(tenant1.getId(), "Unassigned Ticket", requester1.getId(), openStatus1.getId());
             return ticket.getId();
         });
@@ -396,7 +398,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
         ticket.setDescription("Test ticket description");
         ticket.setRequesterId(requesterId);
         ticket.setStatusId(statusId);
-        ticket.setPriority("MEDIUM");
+        ticket.setPriority(Priority.MEDIUM);
         return ticketRepository.save(ticket);
     }
 }

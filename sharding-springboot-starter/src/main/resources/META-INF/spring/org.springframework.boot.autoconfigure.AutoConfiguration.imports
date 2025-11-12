@@ -1,0 +1,2 @@
+com.valarpirai.sharding.config.ShardingAutoConfiguration
+com.valarpirai.sharding.migration.LiquibaseMigrationAutoConfiguration

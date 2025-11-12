@@ -1,6 +1,7 @@
 package com.valarpirai.example.integration;
 
 import com.valarpirai.example.entity.global.Account;
+import com.valarpirai.example.entity.global.Priority;
 import com.valarpirai.example.entity.sharded.Role;
 import com.valarpirai.example.entity.sharded.Status;
 import com.valarpirai.example.entity.sharded.Ticket;
@@ -66,7 +67,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
     @Transactional
     void shouldIsolateUserDataBetweenTenantsOnSameShard() {
         // Tenant 1 creates users
-        List<User> tenant1Users = TenantContext.executeInTenantContext(tenant1Account.getId(), () -> {
+        List<User> tenant1Users = executeInTenantContext(tenant1Account.getId(), () -> {
             Role adminRole = createRole(tenant1Account.getId(), "ADMIN", 0xFFFFFFFFL);
 
             User user1 = createUser(tenant1Account.getId(), "alice@tenant1.com", "Alice", "Smith", adminRole.getId());
@@ -76,7 +77,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
         });
 
         // Tenant 3 creates users (same shard as Tenant 1)
-        List<User> tenant3Users = TenantContext.executeInTenantContext(tenant3Account.getId(), () -> {
+        List<User> tenant3Users = executeInTenantContext(tenant3Account.getId(), () -> {
             Role adminRole = createRole(tenant3Account.getId(), "ADMIN", 0xFFFFFFFFL);
 
             User user1 = createUser(tenant3Account.getId(), "charlie@tenant3.com", "Charlie", "Brown", adminRole.getId());
@@ -98,7 +99,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
                 .containsExactlyInAnyOrder("charlie@tenant3.com", "diana@tenant3.com");
 
         // Verify total isolation - Tenant 1 cannot see Tenant 3's users
-        List<User> tenant1UsersAgain = TenantContext.executeInTenantContext(tenant1Account.getId(), () ->
+        List<User> tenant1UsersAgain = executeInTenantContext(tenant1Account.getId(), () ->
                 userRepository.findByAccountIdAndDeletedFalse(tenant1Account.getId())
         );
         assertThat(tenant1UsersAgain).hasSize(2);
@@ -110,7 +111,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
     @Transactional
     void shouldIsolateTicketDataBetweenTenantsOnDifferentShards() {
         // Setup Tenant 1 (shard1)
-        List<Ticket> tenant1Tickets = TenantContext.executeInTenantContext(tenant1Account.getId(), () -> {
+        List<Ticket> tenant1Tickets = executeInTenantContext(tenant1Account.getId(), () -> {
             Role adminRole = createRole(tenant1Account.getId(), "ADMIN", 0xFFFFFFFFL);
             Status openStatus = createStatus(tenant1Account.getId(), "Open", true);
             User user = createUser(tenant1Account.getId(), "user1@tenant1.com", "User", "One", adminRole.getId());
@@ -122,7 +123,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
         });
 
         // Setup Tenant 2 (shard2 - different shard)
-        List<Ticket> tenant2Tickets = TenantContext.executeInTenantContext(tenant2Account.getId(), () -> {
+        List<Ticket> tenant2Tickets = executeInTenantContext(tenant2Account.getId(), () -> {
             Role adminRole = createRole(tenant2Account.getId(), "ADMIN", 0xFFFFFFFFL);
             Status openStatus = createStatus(tenant2Account.getId(), "Open", true);
             User user = createUser(tenant2Account.getId(), "user1@tenant2.com", "User", "Two", adminRole.getId());
@@ -152,14 +153,14 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
     @Transactional
     void shouldPreventCrossTenantQueriesWithExplicitId() {
         // Tenant 1 creates a user
-        Long tenant1UserId = TenantContext.executeInTenantContext(tenant1Account.getId(), () -> {
+        Long tenant1UserId = executeInTenantContext(tenant1Account.getId(), () -> {
             Role adminRole = createRole(tenant1Account.getId(), "ADMIN", 0xFFFFFFFFL);
             User user = createUser(tenant1Account.getId(), "secret@tenant1.com", "Secret", "User", adminRole.getId());
             return user.getId();
         });
 
         // Tenant 2 tries to access Tenant 1's user by ID (should fail or return empty)
-        User tenant2AttemptedUser = TenantContext.executeInTenantContext(tenant2Account.getId(), () ->
+        User tenant2AttemptedUser = executeInTenantContext(tenant2Account.getId(), () ->
                 userRepository.findById(tenant1UserId).orElse(null)
         );
 
@@ -175,7 +176,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
         // Simulate concurrent operations from multiple tenants
 
         // Tenant 1 operations
-        TenantContext.executeInTenantContext(tenant1Account.getId(), () -> {
+        executeInTenantContext(tenant1Account.getId(), () -> {
             Role role = createRole(tenant1Account.getId(), "ADMIN", 0xFFFFFFFFL);
             createUser(tenant1Account.getId(), "user1@tenant1.com", "User", "1T1", role.getId());
             createUser(tenant1Account.getId(), "user2@tenant1.com", "User", "2T1", role.getId());
@@ -183,7 +184,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
         });
 
         // Tenant 2 operations
-        TenantContext.executeInTenantContext(tenant2Account.getId(), () -> {
+        executeInTenantContext(tenant2Account.getId(), () -> {
             Role role = createRole(tenant2Account.getId(), "ADMIN", 0xFFFFFFFFL);
             createUser(tenant2Account.getId(), "user1@tenant2.com", "User", "1T2", role.getId());
             createUser(tenant2Account.getId(), "user2@tenant2.com", "User", "2T2", role.getId());
@@ -192,22 +193,22 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
         });
 
         // Tenant 3 operations
-        TenantContext.executeInTenantContext(tenant3Account.getId(), () -> {
+        executeInTenantContext(tenant3Account.getId(), () -> {
             Role role = createRole(tenant3Account.getId(), "ADMIN", 0xFFFFFFFFL);
             createUser(tenant3Account.getId(), "user1@tenant3.com", "User", "1T3", role.getId());
             return null;
         });
 
         // Verify each tenant sees only their own data
-        Long tenant1Count = TenantContext.executeInTenantContext(tenant1Account.getId(), () ->
+        Long tenant1Count = executeInTenantContext(tenant1Account.getId(), () ->
                 (long) userRepository.findByAccountIdAndDeletedFalse(tenant1Account.getId()).size()
         );
 
-        Long tenant2Count = TenantContext.executeInTenantContext(tenant2Account.getId(), () ->
+        Long tenant2Count = executeInTenantContext(tenant2Account.getId(), () ->
                 (long) userRepository.findByAccountIdAndDeletedFalse(tenant2Account.getId()).size()
         );
 
-        Long tenant3Count = TenantContext.executeInTenantContext(tenant3Account.getId(), () ->
+        Long tenant3Count = executeInTenantContext(tenant3Account.getId(), () ->
                 (long) userRepository.findByAccountIdAndDeletedFalse(tenant3Account.getId()).size()
         );
 
@@ -221,7 +222,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
     @Transactional
     void shouldIsolateRoleAndStatusConfigurationsPerTenant() {
         // Tenant 1 creates custom roles and statuses
-        TenantContext.executeInTenantContext(tenant1Account.getId(), () -> {
+        executeInTenantContext(tenant1Account.getId(), () -> {
             createRole(tenant1Account.getId(), "CUSTOM_ADMIN", 0xFFFFFFFFL);
             createRole(tenant1Account.getId(), "CUSTOM_AGENT", 0xFFF0000L);
             createStatus(tenant1Account.getId(), "Custom Open", true);
@@ -230,18 +231,18 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
         });
 
         // Tenant 2 creates different custom roles and statuses
-        TenantContext.executeInTenantContext(tenant2Account.getId(), () -> {
+        executeInTenantContext(tenant2Account.getId(), () -> {
             createRole(tenant2Account.getId(), "SUPER_USER", 0xFFFFFFFFL);
             createStatus(tenant2Account.getId(), "In Review", false);
             return null;
         });
 
         // Verify Tenant 1 sees only their configurations
-        List<Role> tenant1Roles = TenantContext.executeInTenantContext(tenant1Account.getId(), () ->
-                roleRepository.findByAccountId(tenant1Account.getId())
+        List<Role> tenant1Roles = executeInTenantContext(tenant1Account.getId(), () ->
+                roleRepository.findByAccountIdAndDeletedFalseOrderByIsSystemRoleDescNameAsc(tenant1Account.getId())
         );
-        List<Status> tenant1Statuses = TenantContext.executeInTenantContext(tenant1Account.getId(), () ->
-                statusRepository.findByAccountId(tenant1Account.getId())
+        List<Status> tenant1Statuses = executeInTenantContext(tenant1Account.getId(), () ->
+                statusRepository.findByAccountIdAndDeletedFalseOrderByPosition(tenant1Account.getId())
         );
 
         assertThat(tenant1Roles).hasSize(2);
@@ -252,11 +253,11 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
                 .containsExactlyInAnyOrder("Custom Open", "Custom Closed");
 
         // Verify Tenant 2 sees only their configurations
-        List<Role> tenant2Roles = TenantContext.executeInTenantContext(tenant2Account.getId(), () ->
-                roleRepository.findByAccountId(tenant2Account.getId())
+        List<Role> tenant2Roles = executeInTenantContext(tenant2Account.getId(), () ->
+                roleRepository.findByAccountIdAndDeletedFalseOrderByIsSystemRoleDescNameAsc(tenant2Account.getId())
         );
-        List<Status> tenant2Statuses = TenantContext.executeInTenantContext(tenant2Account.getId(), () ->
-                statusRepository.findByAccountId(tenant2Account.getId())
+        List<Status> tenant2Statuses = executeInTenantContext(tenant2Account.getId(), () ->
+                statusRepository.findByAccountIdAndDeletedFalseOrderByPosition(tenant2Account.getId())
         );
 
         assertThat(tenant2Roles).hasSize(1);
@@ -311,7 +312,7 @@ class MultiTenantDataIsolationTest extends BaseIntegrationTest {
         ticket.setDescription("Test ticket description");
         ticket.setRequesterId(requesterId);
         ticket.setStatusId(statusId);
-        ticket.setPriority("MEDIUM");
+        ticket.setPriority(Priority.MEDIUM);
         return ticketRepository.save(ticket);
     }
 }
