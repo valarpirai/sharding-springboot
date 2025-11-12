@@ -3,7 +3,9 @@ package com.valarpirai.sharding.context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
+import javax.sql.DataSource;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class TenantContextTest {
 
+    private final DataSource mockDataSource = Mockito.mock(DataSource.class);
+
     @BeforeEach
     @AfterEach
     void cleanup() {
@@ -23,36 +27,25 @@ class TenantContextTest {
     }
 
     @Test
-    void testSetAndGetTenantId() {
-        // Given
-        Long tenantId = 1001L;
-
-        // When
-        TenantContext.setTenantId(tenantId);
-
-        // Then
-        assertEquals(tenantId, TenantContext.getTenantId());
-        assertTrue(TenantContext.hasTenantContext());
-    }
-
-    @Test
     void testSetAndGetTenantInfo() {
         // Given
-        TenantInfo tenantInfo = new TenantInfo(1001L, false);
+        TenantInfo tenantInfo = new TenantInfo(1001L, "shard1", false, mockDataSource);
 
         // When
         TenantContext.setTenantInfo(tenantInfo);
 
         // Then
         assertEquals(tenantInfo, TenantContext.getTenantInfo());
-        assertEquals(1001L, TenantContext.getTenantId());
+        assertEquals(1001L, TenantContext.getCurrentTenantId());
+        assertEquals("shard1", TenantContext.getCurrentShardId());
         assertFalse(TenantContext.isReadOnlyMode());
     }
 
     @Test
     void testReadOnlyMode() {
         // Given
-        TenantContext.setTenantId(1001L);
+        TenantInfo tenantInfo = new TenantInfo(1001L, "shard1", false, mockDataSource);
+        TenantContext.setTenantInfo(tenantInfo);
 
         // When
         TenantContext.setReadOnlyMode(true);
@@ -70,91 +63,93 @@ class TenantContextTest {
     @Test
     void testClear() {
         // Given
-        TenantContext.setTenantId(1001L);
-        TenantContext.setReadOnlyMode(true);
+        TenantInfo tenantInfo = new TenantInfo(1001L, "shard1", true, mockDataSource);
+        TenantContext.setTenantInfo(tenantInfo);
 
         // When
         TenantContext.clear();
 
         // Then
-        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getCurrentTenantId());
+        assertNull(TenantContext.getCurrentShardId());
         assertNull(TenantContext.getTenantInfo());
-        assertFalse(TenantContext.hasTenantContext());
         assertFalse(TenantContext.isReadOnlyMode());
     }
 
     @Test
     void testExecuteInTenantContextWithSupplier() {
         // Given
-        Long tenantId = 1001L;
+        TenantInfo tenantInfo = new TenantInfo(1001L, "shard1", false, mockDataSource);
         String expectedResult = "test-result";
 
         // Ensure context is clear initially
         TenantContext.clear();
 
         // When
-        String result = TenantContext.executeInTenantContext(tenantId, () -> {
+        String result = TenantContext.executeInTenantContext(tenantInfo, () -> {
             // Verify context is set within execution
-            assertEquals(tenantId, TenantContext.getTenantId());
+            assertEquals(1001L, TenantContext.getCurrentTenantId());
+            assertEquals("shard1", TenantContext.getCurrentShardId());
             return expectedResult;
         });
 
         // Then
         assertEquals(expectedResult, result);
         // Context should be cleared after execution
-        assertFalse(TenantContext.hasTenantContext());
+        assertNull(TenantContext.getTenantInfo());
     }
 
     @Test
     void testExecuteInTenantContextWithRunnable() {
         // Given
-        Long tenantId = 1001L;
+        TenantInfo tenantInfo = new TenantInfo(1001L, "shard1", false, mockDataSource);
         AtomicReference<Long> capturedTenantId = new AtomicReference<>();
 
         // Ensure context is clear initially
         TenantContext.clear();
 
         // When
-        TenantContext.executeInTenantContext(tenantId, () -> {
+        TenantContext.executeInTenantContext(tenantInfo, () -> {
             // Verify context is set within execution
-            capturedTenantId.set(TenantContext.getTenantId());
+            capturedTenantId.set(TenantContext.getCurrentTenantId());
         });
 
         // Then
-        assertEquals(tenantId, capturedTenantId.get());
+        assertEquals(1001L, capturedTenantId.get());
         // Context should be cleared after execution
-        assertFalse(TenantContext.hasTenantContext());
+        assertNull(TenantContext.getTenantInfo());
     }
 
     @Test
     void testExecuteInTenantContextPreservesExistingContext() {
         // Given
-        Long existingTenantId = 1001L;
-        Long newTenantId = 2001L;
+        TenantInfo existingInfo = new TenantInfo(1001L, "shard1", true, mockDataSource);
+        TenantInfo newInfo = new TenantInfo(2001L, "shard2", false, mockDataSource);
 
         // Set existing context
-        TenantContext.setTenantId(existingTenantId);
-        TenantContext.setReadOnlyMode(true);
+        TenantContext.setTenantInfo(existingInfo);
 
         // When
-        String result = TenantContext.executeInTenantContext(newTenantId, () -> {
+        String result = TenantContext.executeInTenantContext(newInfo, () -> {
             // Verify new context is set
-            assertEquals(newTenantId, TenantContext.getTenantId());
-            assertFalse(TenantContext.isReadOnlyMode()); // Should reset to default
+            assertEquals(2001L, TenantContext.getCurrentTenantId());
+            assertEquals("shard2", TenantContext.getCurrentShardId());
+            assertFalse(TenantContext.isReadOnlyMode());
             return "success";
         });
 
         // Then
         assertEquals("success", result);
         // Original context should be restored
-        assertEquals(existingTenantId, TenantContext.getTenantId());
+        assertEquals(1001L, TenantContext.getCurrentTenantId());
+        assertEquals("shard1", TenantContext.getCurrentShardId());
         assertTrue(TenantContext.isReadOnlyMode());
     }
 
     @Test
     void testExecuteInTenantContextWithException() {
         // Given
-        Long tenantId = 1001L;
+        TenantInfo tenantInfo = new TenantInfo(1001L, "shard1", false, mockDataSource);
         RuntimeException expectedException = new RuntimeException("test exception");
 
         // Ensure context is clear initially
@@ -162,86 +157,64 @@ class TenantContextTest {
 
         // When/Then
         RuntimeException actualException = assertThrows(RuntimeException.class, () -> {
-            TenantContext.executeInTenantContext(tenantId, () -> {
-                assertEquals(tenantId, TenantContext.getTenantId());
+            TenantContext.executeInTenantContext(tenantInfo, () -> {
+                assertEquals(1001L, TenantContext.getCurrentTenantId());
                 throw expectedException;
             });
         });
 
         assertEquals(expectedException, actualException);
         // Context should be cleared even after exception
-        assertFalse(TenantContext.hasTenantContext());
+        assertNull(TenantContext.getTenantInfo());
     }
 
     @Test
     void testThreadIsolation() throws Exception {
         // Given
-        Long mainThreadTenantId = 1001L;
-        Long otherThreadTenantId = 2001L;
+        TenantInfo mainThreadInfo = new TenantInfo(1001L, "shard1", false, mockDataSource);
+        TenantInfo otherThreadInfo = new TenantInfo(2001L, "shard2", false, mockDataSource);
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         try {
             // Set context in main thread
-            TenantContext.setTenantId(mainThreadTenantId);
+            TenantContext.setTenantInfo(mainThreadInfo);
 
             // When - execute in different thread
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 // Other thread should not see main thread's context
-                assertFalse(TenantContext.hasTenantContext());
-                assertNull(TenantContext.getTenantId());
+                assertNull(TenantContext.getTenantInfo());
+                assertNull(TenantContext.getCurrentTenantId());
 
                 // Set different context in other thread
-                TenantContext.setTenantId(otherThreadTenantId);
-                assertEquals(otherThreadTenantId, TenantContext.getTenantId());
+                TenantContext.setTenantInfo(otherThreadInfo);
+                assertEquals(2001L, TenantContext.getCurrentTenantId());
             }, executor);
 
             future.get();
 
             // Then - main thread context should be unchanged
-            assertEquals(mainThreadTenantId, TenantContext.getTenantId());
+            assertEquals(1001L, TenantContext.getCurrentTenantId());
+            assertEquals("shard1", TenantContext.getCurrentShardId());
         } finally {
             executor.shutdown();
         }
     }
 
     @Test
-    void testGetTenantIdOrThrow() {
-        // Given - no context set
-        TenantContext.clear();
-
-        // When/Then - should throw exception
-        assertThrows(IllegalStateException.class, () -> {
-            TenantContext.getTenantIdOrThrow("Test operation requires tenant context");
+    void testSetTenantIdThrowsUnsupportedOperation() {
+        // The deprecated setTenantId method should throw UnsupportedOperationException
+        assertThrows(UnsupportedOperationException.class, () -> {
+            TenantContext.setTenantId(1001L);
         });
-
-        // Given - context set
-        Long tenantId = 1001L;
-        TenantContext.setTenantId(tenantId);
-
-        // When/Then - should return tenant ID
-        assertEquals(tenantId, TenantContext.getTenantIdOrThrow("Test operation"));
     }
 
     @Test
-    void testToString() {
-        // Given
+    void testGetCurrentTenantIdWhenNoContext() {
+        // Given - no context set
         TenantContext.clear();
 
-        // When - no context
-        String result1 = TenantContext.toString();
-
-        // Then
-        assertTrue(result1.contains("No tenant context"));
-
-        // Given - with context
-        TenantContext.setTenantId(1001L);
-        TenantContext.setReadOnlyMode(true);
-
-        // When
-        String result2 = TenantContext.toString();
-
-        // Then
-        assertTrue(result2.contains("1001"));
-        assertTrue(result2.contains("readOnly=true"));
+        // When/Then
+        assertNull(TenantContext.getCurrentTenantId());
+        assertNull(TenantContext.getCurrentShardId());
     }
 }

@@ -30,9 +30,10 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.global-db.url=jdbc:h2:mem:global_test",
                         "app.sharding.global-db.username=sa",
                         "app.sharding.global-db.password=",
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password="
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password=",
+                        "app.sharding.dual-datasource.enabled=false"
                 )
                 .run(context -> {
                     // Verify core beans are created
@@ -40,7 +41,7 @@ class ShardingAutoConfigurationTest {
                     assertThat(context).hasSingleBean(DataSource.class);
                     assertThat(context).hasSingleBean(JdbcTemplate.class);
                     assertThat(context).hasSingleBean(DatabaseSqlProviderFactory.class);
-                    assertThat(context).hasSingleBean(ShardLookupService.class);
+                    assertThat(context).hasSingleBean(com.valarpirai.sharding.lookup.ITenantShardMappingRepo.class);
                     assertThat(context).hasSingleBean(ShardUtils.class);
                     assertThat(context).hasSingleBean(TenantIterator.class);
                     assertThat(context).hasSingleBean(EntityValidator.class);
@@ -56,10 +57,11 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.global-db.url=jdbc:h2:mem:global_test",
                         "app.sharding.global-db.username=sa",
                         "app.sharding.global-db.password=",
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password=",
-                        "app.sharding.cache.enabled=false"
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password=",
+                        "app.sharding.cache.enabled=false",
+                        "app.sharding.dual-datasource.enabled=false"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(CacheManager.class);
@@ -75,13 +77,14 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.global-db.url=jdbc:h2:mem:global_test",
                         "app.sharding.global-db.username=sa",
                         "app.sharding.global-db.password=",
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password=",
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password=",
                         "app.sharding.cache.enabled=true",
                         "app.sharding.cache.type=CAFFEINE",
                         "app.sharding.cache.ttl-hours=2",
-                        "app.sharding.cache.max-size=5000"
+                        "app.sharding.cache.max-size=5000",
+                        "app.sharding.dual-datasource.enabled=false"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(CacheManager.class);
@@ -98,22 +101,20 @@ class ShardingAutoConfigurationTest {
     }
 
     @Test
-    void testAutoConfigurationWithValidationSettings() {
+    void testAutoConfigurationWithTenantColumnNames() {
         contextRunner
                 .withPropertyValues(
                         "app.sharding.global-db.url=jdbc:h2:mem:global_test",
                         "app.sharding.global-db.username=sa",
                         "app.sharding.global-db.password=",
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password=",
-                        "app.sharding.validation.strictness=WARN",
-                        "app.sharding.tenant-column-names=tenant_id,company_id,org_id"
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password=",
+                        "app.sharding.tenant-column-names=tenant_id,company_id,org_id",
+                        "app.sharding.dual-datasource.enabled=false"
                 )
                 .run(context -> {
                     ShardingConfigProperties properties = context.getBean(ShardingConfigProperties.class);
-                    assertThat(properties.getValidation().getStrictness())
-                            .isEqualTo(ShardingConfigProperties.StrictnessLevel.WARN);
                     assertThat(properties.getTenantColumnNames())
                             .containsExactly("tenant_id", "company_id", "org_id");
                 });
@@ -127,20 +128,21 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.global-db.username=sa",
                         "app.sharding.global-db.password=",
                         // Shard 1
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password=",
-                        "app.sharding.shard1.replica1.url=jdbc:h2:mem:shard1_replica_test",
-                        "app.sharding.shard1.replica1.username=sa",
-                        "app.sharding.shard1.replica1.password=",
-                        "app.sharding.shard1.latest=true",
-                        "app.sharding.shard1.region=us-east-1",
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password=",
+                        "app.sharding.shards.shard1.replica1.url=jdbc:h2:mem:shard1_replica_test",
+                        "app.sharding.shards.shard1.replica1.username=sa",
+                        "app.sharding.shards.shard1.replica1.password=",
+                        "app.sharding.shards.shard1.latest=true",
+                        "app.sharding.shards.shard1.region=us-east-1",
                         // Shard 2
-                        "app.sharding.shard2.master.url=jdbc:h2:mem:shard2_test",
-                        "app.sharding.shard2.master.username=sa",
-                        "app.sharding.shard2.master.password=",
-                        "app.sharding.shard2.latest=false",
-                        "app.sharding.shard2.region=us-west-2"
+                        "app.sharding.shards.shard2.master.url=jdbc:h2:mem:shard2_test",
+                        "app.sharding.shards.shard2.master.username=sa",
+                        "app.sharding.shards.shard2.master.password=",
+                        "app.sharding.shards.shard2.latest=false",
+                        "app.sharding.shards.shard2.region=us-west-2",
+                        "app.sharding.dual-datasource.enabled=false"
                 )
                 .run(context -> {
                     ShardingConfigProperties properties = context.getBean(ShardingConfigProperties.class);
@@ -161,11 +163,12 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.global-db.password=",
                         "app.sharding.global-db.hikari.maximum-pool-size=15",
                         "app.sharding.global-db.hikari.minimum-idle=3",
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password=",
-                        "app.sharding.shard1.hikari.maximum-pool-size=25",
-                        "app.sharding.shard1.hikari.minimum-idle=8"
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password=",
+                        "app.sharding.shards.shard1.hikari.maximum-pool-size=25",
+                        "app.sharding.shards.shard1.hikari.minimum-idle=8",
+                        "app.sharding.dual-datasource.enabled=false"
                 )
                 .run(context -> {
                     ShardingConfigProperties properties = context.getBean(ShardingConfigProperties.class);
@@ -180,9 +183,9 @@ class ShardingAutoConfigurationTest {
     void testAutoConfigurationFailsWithoutGlobalDatabase() {
         contextRunner
                 .withPropertyValues(
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password="
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password="
                 )
                 .run(context -> {
                     assertThat(context).hasFailed();
@@ -196,9 +199,9 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.global-db.url=jdbc:h2:mem:global_test",
                         "app.sharding.global-db.username=sa",
                         "app.sharding.global-db.password=",
-                        "app.sharding.shard1.master.url=jdbc:h2:mem:shard1_test",
-                        "app.sharding.shard1.master.username=sa",
-                        "app.sharding.shard1.master.password="
+                        "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
+                        "app.sharding.shards.shard1.master.username=sa",
+                        "app.sharding.shards.shard1.master.password="
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(EntityValidator.class);

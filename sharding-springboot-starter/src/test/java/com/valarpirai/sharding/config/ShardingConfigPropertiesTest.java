@@ -32,8 +32,6 @@ class ShardingConfigPropertiesTest {
         assertNotNull(properties.getTenantColumnNames());
         assertTrue(properties.getTenantColumnNames().contains("tenant_id"));
         assertTrue(properties.getTenantColumnNames().contains("company_id"));
-        assertNotNull(properties.getValidation());
-        assertEquals(ShardingConfigProperties.StrictnessLevel.STRICT, properties.getValidation().getStrictness());
         assertNotNull(properties.getCache());
         assertTrue(properties.getCache().isEnabled());
         assertEquals(ShardingConfigProperties.CacheType.CAFFEINE, properties.getCache().getType());
@@ -54,17 +52,6 @@ class ShardingConfigPropertiesTest {
         assertEquals("test_password", globalDb.getPassword());
         assertEquals("com.mysql.cj.jdbc.Driver", globalDb.getDriverClassName());
         assertNotNull(globalDb.getHikari());
-    }
-
-    @Test
-    void testValidationConfig() {
-        ShardingConfigProperties.ValidationConfig validation = properties.getValidation();
-
-        validation.setStrictness(ShardingConfigProperties.StrictnessLevel.WARN);
-        assertEquals(ShardingConfigProperties.StrictnessLevel.WARN, validation.getStrictness());
-
-        validation.setStrictness(ShardingConfigProperties.StrictnessLevel.DISABLED);
-        assertEquals(ShardingConfigProperties.StrictnessLevel.DISABLED, validation.getStrictness());
     }
 
     @Test
@@ -115,19 +102,6 @@ class ShardingConfigPropertiesTest {
     }
 
     @Test
-    void testStrictnessLevelEnum() {
-        // Test all enum values
-        ShardingConfigProperties.StrictnessLevel[] levels = ShardingConfigProperties.StrictnessLevel.values();
-        assertEquals(4, levels.length);
-
-        // Test specific values
-        assertNotNull(ShardingConfigProperties.StrictnessLevel.STRICT);
-        assertNotNull(ShardingConfigProperties.StrictnessLevel.WARN);
-        assertNotNull(ShardingConfigProperties.StrictnessLevel.LOG);
-        assertNotNull(ShardingConfigProperties.StrictnessLevel.DISABLED);
-    }
-
-    @Test
     void testCacheTypeEnum() {
         // Test all enum values
         ShardingConfigProperties.CacheType[] types = ShardingConfigProperties.CacheType.values();
@@ -141,22 +115,21 @@ class ShardingConfigPropertiesTest {
     @Test
     void testPropertyBinding() {
         // Test property binding using Spring Boot's Binder
-        Map<String, Object> properties = Map.of(
-            "app.sharding.global-db.url", "jdbc:mysql://localhost:3306/test",
-            "app.sharding.global-db.username", "testuser",
-            "app.sharding.global-db.password", "testpass",
-            "app.sharding.tenant-column-names[0]", "tenant_id",
-            "app.sharding.tenant-column-names[1]", "org_id",
-            "app.sharding.validation.strictness", "WARN",
-            "app.sharding.cache.enabled", "true",
-            "app.sharding.cache.type", "REDIS",
-            "app.sharding.cache.ttl-hours", "2",
-            "app.sharding.cache.redis-host", "redis-server",
-            "app.sharding.cache.redis-port", "6380",
-            "app.sharding.shard1.master.url", "jdbc:mysql://localhost:3306/shard1",
-            "app.sharding.shard1.master.username", "shard1user",
-            "app.sharding.shard1.latest", "true",
-            "app.sharding.shard1.region", "us-east-1"
+        Map<String, Object> properties = Map.ofEntries(
+            Map.entry("app.sharding.global-db.url", "jdbc:mysql://localhost:3306/test"),
+            Map.entry("app.sharding.global-db.username", "testuser"),
+            Map.entry("app.sharding.global-db.password", "testpass"),
+            Map.entry("app.sharding.tenant-column-names[0]", "tenant_id"),
+            Map.entry("app.sharding.tenant-column-names[1]", "org_id"),
+            Map.entry("app.sharding.cache.enabled", "true"),
+            Map.entry("app.sharding.cache.type", "REDIS"),
+            Map.entry("app.sharding.cache.ttl-hours", "2"),
+            Map.entry("app.sharding.cache.redis-host", "redis-server"),
+            Map.entry("app.sharding.cache.redis-port", "6380"),
+            Map.entry("app.sharding.shards.shard1.master.url", "jdbc:mysql://localhost:3306/shard1"),
+            Map.entry("app.sharding.shards.shard1.master.username", "shard1user"),
+            Map.entry("app.sharding.shards.shard1.latest", "true"),
+            Map.entry("app.sharding.shards.shard1.region", "us-east-1")
         );
 
         StandardEnvironment environment = new StandardEnvironment();
@@ -173,8 +146,6 @@ class ShardingConfigPropertiesTest {
         assertEquals(2, boundProperties.getTenantColumnNames().size());
         assertEquals("tenant_id", boundProperties.getTenantColumnNames().get(0));
         assertEquals("org_id", boundProperties.getTenantColumnNames().get(1));
-
-        assertEquals(ShardingConfigProperties.StrictnessLevel.WARN, boundProperties.getValidation().getStrictness());
 
         assertTrue(boundProperties.getCache().isEnabled());
         assertEquals(ShardingConfigProperties.CacheType.REDIS, boundProperties.getCache().getType());
