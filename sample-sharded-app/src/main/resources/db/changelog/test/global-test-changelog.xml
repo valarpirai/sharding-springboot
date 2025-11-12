@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <!-- Test Changelog for Global Database -->
+
+    <changeSet id="test-global-1" author="test">
+        <comment>Create test metadata table in global database</comment>
+        <createTable tableName="migration_test_metadata">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="test_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="test_value" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <rollback>
+            <dropTable tableName="migration_test_metadata"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="test-global-2" author="test">
+        <comment>Add index to test metadata table</comment>
+        <createIndex indexName="idx_test_name" tableName="migration_test_metadata">
+            <column name="test_name"/>
+        </createIndex>
+        <rollback>
+            <dropIndex indexName="idx_test_name" tableName="migration_test_metadata"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="test-global-3" author="test">
+        <comment>Insert test data</comment>
+        <insert tableName="migration_test_metadata">
+            <column name="test_name" value="migration_test"/>
+            <column name="test_value" value="Global database migration successful"/>
+        </insert>
+        <rollback>
+            <delete tableName="migration_test_metadata">
+                <where>test_name='migration_test'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

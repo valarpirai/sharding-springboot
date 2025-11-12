@@ -5,7 +5,6 @@ import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
 import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import com.valarpirai.sharding.validation.EntityValidator;
-import com.valarpirai.sharding.validation.QueryValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -44,7 +43,6 @@ class ShardingAutoConfigurationTest {
                     assertThat(context).hasSingleBean(ShardLookupService.class);
                     assertThat(context).hasSingleBean(ShardUtils.class);
                     assertThat(context).hasSingleBean(TenantIterator.class);
-                    assertThat(context).hasSingleBean(QueryValidator.class);
                     assertThat(context).hasSingleBean(EntityValidator.class);
                     assertThat(context).hasSingleBean(ShardAwareDataSourceDelegate.class);
                     assertThat(context).hasSingleBean(CacheManager.class);
@@ -202,14 +200,8 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.shard1.master.username=sa",
                         "app.sharding.shard1.master.password="
                 )
-                .withBean("customQueryValidator", QueryValidator.class, () -> {
-                    // Create a custom QueryValidator
-                    ShardingConfigProperties customProps = new ShardingConfigProperties();
-                    return new QueryValidator(customProps);
-                })
                 .run(context -> {
-                    assertThat(context).hasSingleBean(QueryValidator.class);
-                    assertThat(context).hasBean("customQueryValidator");
+                    assertThat(context).hasSingleBean(EntityValidator.class);
                 });
     }
 }

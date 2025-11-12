@@ -1,5 +1,6 @@
 package com.valarpirai.sharding.migration;
 
+import com.valarpirai.sharding.config.DatabaseConfig;
 import com.valarpirai.sharding.config.ShardConfig;
 import com.valarpirai.sharding.config.ShardingConfigProperties;
 import com.zaxxer.hikari.HikariConfig;
@@ -289,7 +290,7 @@ public class LiquibaseMigrationOrchestrator {
         Instant startTime = Instant.now();
         progressTracker.startMigration(dbId, "unknown", "target", 0);
 
-        try (DataSource dataSource = createTemporaryDataSource(url, username, password);
+        try (HikariDataSource dataSource = createTemporaryDataSource(url, username, password);
              Connection connection = dataSource.getConnection()) {
 
             Database database = DatabaseFactory.getInstance()
@@ -352,11 +353,12 @@ public class LiquibaseMigrationOrchestrator {
      */
     private String getCurrentVersion(Liquibase liquibase) {
         try {
-            var ranChangeSets = liquibase.getDatabaseChangeLog().getRanChangeSets();
-            if (ranChangeSets.isEmpty()) {
+            var ranChangeSets = liquibase.getDatabase().getRanChangeSetList();
+            if (ranChangeSets == null || ranChangeSets.isEmpty()) {
                 return "0.0.0";
             }
-            return ranChangeSets.get(ranChangeSets.size() - 1).toString();
+            var lastChangeSet = ranChangeSets.get(ranChangeSets.size() - 1);
+            return lastChangeSet.getId();
         } catch (Exception e) {
             return "unknown";
         }
@@ -365,7 +367,7 @@ public class LiquibaseMigrationOrchestrator {
     /**
      * Create a temporary DataSource for migration.
      */
-    private DataSource createTemporaryDataSource(String url, String username, String password) {
+    private HikariDataSource createTemporaryDataSource(String url, String username, String password) {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(url);
         config.setUsername(username);
@@ -383,7 +385,7 @@ public class LiquibaseMigrationOrchestrator {
         List<ShardInfo> shards = new ArrayList<>();
 
         shardingProperties.getShards().forEach((shardId, shardConfig) -> {
-            ShardConfig.DataSourceConfig master = shardConfig.getMaster();
+            DatabaseConfig master = shardConfig.getMaster();
             shards.add(new ShardInfo(
                     shardId,
                     master.getUrl(),
@@ -505,7 +507,7 @@ public class LiquibaseMigrationOrchestrator {
         Instant startTime = Instant.now();
         progressTracker.startMigration(shard.getShardId(), "rollback", "target", 0);
 
-        try (DataSource dataSource = createTemporaryDataSource(
+        try (HikariDataSource dataSource = createTemporaryDataSource(
                 shard.getUrl(), shard.getUsername(), shard.getPassword());
              Connection connection = dataSource.getConnection()) {
 
@@ -522,10 +524,10 @@ public class LiquibaseMigrationOrchestrator {
                 // Perform rollback based on type
                 switch (request.getType()) {
                     case COUNT:
-                        liquibase.rollback(request.getCount(), new Contexts(migrationConfig.getContexts()));
+                        liquibase.rollback(request.getCount(), migrationConfig.getContexts());
                         break;
                     case TAG:
-                        liquibase.rollback(request.getTag(), new Contexts(migrationConfig.getContexts()));
+                        liquibase.rollback(request.getTag(), migrationConfig.getContexts());
                         break;
                     case DATE:
                         // Note: Liquibase date rollback requires java.util.Date
