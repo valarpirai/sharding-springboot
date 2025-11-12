@@ -74,7 +74,7 @@ class DatabaseSqlProviderFactoryTest {
     @Test
     void testGetProviderForUnsupportedUrl() {
         // Given
-        String unsupportedUrl = "jdbc:h2:mem:testdb";
+        String unsupportedUrl = "jdbc:oracle:thin:@localhost:1521:testdb";
 
         // When/Then
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -82,8 +82,8 @@ class DatabaseSqlProviderFactoryTest {
         });
 
         assertTrue(exception.getMessage().contains("Unsupported database URL"));
-        assertTrue(exception.getMessage().contains("jdbc:h2:mem:testdb"));
-        assertTrue(exception.getMessage().contains("MySQL, PostgreSQL"));
+        assertTrue(exception.getMessage().contains("jdbc:oracle"));
+        assertTrue(exception.getMessage().contains("H2, MySQL, PostgreSQL"));
     }
 
     @Test
@@ -128,7 +128,8 @@ class DatabaseSqlProviderFactoryTest {
         List<String> supportedDatabases = factory.getSupportedDatabases();
 
         // Then
-        assertEquals(2, supportedDatabases.size());
+        assertEquals(3, supportedDatabases.size());
+        assertTrue(supportedDatabases.contains("H2"));
         assertTrue(supportedDatabases.contains("MySQL"));
         assertTrue(supportedDatabases.contains("PostgreSQL"));
     }

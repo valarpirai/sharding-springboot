@@ -15,6 +15,7 @@ public class DatabaseSqlProviderFactory {
 
     public DatabaseSqlProviderFactory() {
         this.providers = Arrays.asList(
+            new H2SqlProvider(),
             new MySQLSqlProvider(),
             new PostgreSQLSqlProvider()
         );
@@ -33,7 +34,7 @@ public class DatabaseSqlProviderFactory {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException(
                 "Unsupported database URL: " + jdbcUrl +
-                ". Supported databases: MySQL, PostgreSQL"));
+                ". Supported databases: H2, MySQL, PostgreSQL"));
     }
 
     /**

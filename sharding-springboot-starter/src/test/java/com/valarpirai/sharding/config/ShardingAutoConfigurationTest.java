@@ -201,7 +201,8 @@ class ShardingAutoConfigurationTest {
                         "app.sharding.global-db.password=",
                         "app.sharding.shards.shard1.master.url=jdbc:h2:mem:shard1_test",
                         "app.sharding.shards.shard1.master.username=sa",
-                        "app.sharding.shards.shard1.master.password="
+                        "app.sharding.shards.shard1.master.password=",
+                        "app.sharding.dual-datasource.enabled=false"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(EntityValidator.class);

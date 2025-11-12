@@ -3,7 +3,7 @@ package com.valarpirai.sharding.integration;
 import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.config.ShardingAutoConfiguration;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
+import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.junit.jupiter.api.AfterEach;
@@ -50,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ShardingIntegrationTest {
 
     @Autowired
-    private TenantShardMappingRepository shardLookupService;
+    private ITenantShardMappingRepo shardLookupService;
 
     @Autowired
     private ShardUtils shardUtils;
@@ -253,6 +253,7 @@ class ShardingIntegrationTest {
         @Id
         private Long id;
 
+        @jakarta.persistence.Column(name = "tenant_id")
         private Long tenantId;
         private String name;
 
