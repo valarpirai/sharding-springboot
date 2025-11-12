@@ -4,10 +4,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Security configuration for the application.
@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  */
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+public class SecurityConfig {
 
     /**
      * Password encoder for hashing user passwords.
@@ -25,31 +25,32 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new BCryptPasswordEncoder(10);
     }
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             // Disable CSRF for API endpoints
-            .csrf().disable()
+            .csrf(csrf -> csrf.disable())
 
             // Disable sessions (stateless)
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             // Configure authorization
-            .and()
-            .authorizeRequests()
+            .authorizeHttpRequests(auth -> auth
                 // Allow signup and swagger endpoints
-                .antMatchers("/api/signup/**").permitAll()
-                .antMatchers("/api/auth/login").permitAll()
-                .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .antMatchers("/actuator/**").permitAll()
+                .requestMatchers("/api/signup/**").permitAll()
+                .requestMatchers("/api/auth/login").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 // All other endpoints require authentication (will be handled by JWT later)
                 .anyRequest().permitAll() // Temporarily permit all for development
+            )
 
             // Disable basic auth popup
-            .and()
-            .httpBasic().disable()
+            .httpBasic(httpBasic -> httpBasic.disable())
 
             // Disable form login
-            .formLogin().disable();
+            .formLogin(formLogin -> formLogin.disable());
+
+        return http.build();
     }
 }

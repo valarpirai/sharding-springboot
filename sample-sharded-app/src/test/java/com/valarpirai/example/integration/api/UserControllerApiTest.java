@@ -1,8 +1,8 @@
 package com.valarpirai.example.integration.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.valarpirai.example.dto.user.CreateUserRequest;
-import com.valarpirai.example.dto.user.UpdateUserRequest;
+import com.valarpirai.example.dto.UserCreateRequest;
+import com.valarpirai.example.dto.UserUpdateRequest;
 import com.valarpirai.example.entity.global.Account;
 import com.valarpirai.example.entity.sharded.Role;
 import com.valarpirai.example.entity.sharded.User;
@@ -145,7 +145,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
     @DisplayName("POST /api/users - Should create user for tenant")
     @Transactional
     void shouldCreateUserForTenant() throws Exception {
-        CreateUserRequest request = new CreateUserRequest();
+        UserCreateRequest request = new UserCreateRequest();
         request.setEmail("newuser@tenant1.com");
         request.setPassword("SecurePass123!");
         request.setFirstName("New");
@@ -175,7 +175,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
         });
 
         // Try to create user with same email
-        CreateUserRequest request = new CreateUserRequest();
+        UserCreateRequest request = new UserCreateRequest();
         request.setEmail("existing@tenant1.com");
         request.setPassword("SecurePass123!");
         request.setFirstName("Duplicate");
@@ -200,7 +200,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
         });
 
         // Create user with same email for tenant2 (should succeed)
-        CreateUserRequest request = new CreateUserRequest();
+        UserCreateRequest request = new UserCreateRequest();
         request.setEmail("shared@example.com");
         request.setPassword("SecurePass123!");
         request.setFirstName("User");
@@ -227,7 +227,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
         });
 
         // Update user
-        UpdateUserRequest request = new UpdateUserRequest();
+        UserUpdateRequest request = new UserUpdateRequest();
         request.setFirstName("Updated");
         request.setLastName("Name");
 
@@ -251,7 +251,7 @@ class UserControllerApiTest extends BaseIntegrationTest {
         });
 
         // Try to update with tenant2 header
-        UpdateUserRequest request = new UpdateUserRequest();
+        UserUpdateRequest request = new UserUpdateRequest();
         request.setFirstName("Malicious");
         request.setLastName("Update");
 

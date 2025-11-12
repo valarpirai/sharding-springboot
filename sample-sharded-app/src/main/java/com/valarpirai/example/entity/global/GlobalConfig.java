@@ -1,6 +1,6 @@
 package com.valarpirai.example.entity.global;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**

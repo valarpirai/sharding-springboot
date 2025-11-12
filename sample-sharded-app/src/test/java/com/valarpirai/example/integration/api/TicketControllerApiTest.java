@@ -1,8 +1,8 @@
 package com.valarpirai.example.integration.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.valarpirai.example.dto.ticket.CreateTicketRequest;
-import com.valarpirai.example.dto.ticket.UpdateTicketRequest;
+import com.valarpirai.example.dto.TicketCreateRequest;
+import com.valarpirai.example.dto.TicketUpdateRequest;
 import com.valarpirai.example.entity.global.Account;
 import com.valarpirai.example.entity.sharded.Role;
 import com.valarpirai.example.entity.sharded.Status;
@@ -148,7 +148,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @DisplayName("POST /api/tickets - Should create ticket for tenant")
     @Transactional
     void shouldCreateTicketForTenant() throws Exception {
-        CreateTicketRequest request = new CreateTicketRequest();
+        TicketCreateRequest request = new TicketCreateRequest();
         request.setSubject("New Ticket");
         request.setDescription("This is a new ticket");
         request.setRequesterId(requester1.getId());
@@ -170,7 +170,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
     @DisplayName("POST /api/tickets - Should enforce requester belongs to same tenant")
     @Transactional
     void shouldEnforceRequesterBelongsToSameTenant() throws Exception {
-        CreateTicketRequest request = new CreateTicketRequest();
+        TicketCreateRequest request = new TicketCreateRequest();
         request.setSubject("Cross-tenant Ticket");
         request.setDescription("Attempting to use requester from another tenant");
         request.setRequesterId(requester2.getId()); // Tenant 2's requester
@@ -195,7 +195,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
         });
 
         // Update ticket
-        UpdateTicketRequest request = new UpdateTicketRequest();
+        TicketUpdateRequest request = new TicketUpdateRequest();
         request.setSubject("Updated Subject");
         request.setDescription("Updated description");
         request.setPriority("HIGH");
@@ -221,7 +221,7 @@ class TicketControllerApiTest extends BaseIntegrationTest {
         });
 
         // Try to update with tenant2 header
-        UpdateTicketRequest request = new UpdateTicketRequest();
+        TicketUpdateRequest request = new TicketUpdateRequest();
         request.setSubject("Malicious Update");
 
         mockMvc.perform(put("/api/tickets/" + ticketId)

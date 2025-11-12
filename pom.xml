@@ -13,15 +13,15 @@
     <description>Multi-module project for Java backend development</description>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.boot.version>2.7.0</spring.boot.version>
-        <spring.cloud.version>Hoxton.SR9</spring.cloud.version>
-        <kotlin.version>1.7.10</kotlin.version>
-        <jackson.version>2.13.3</jackson.version>
-        <junit.version>5.9.1</junit.version>
-        <testcontainers.version>1.17.3</testcontainers.version>
+        <spring.boot.version>3.4.5</spring.boot.version>
+        <spring.cloud.version>2023.0.4</spring.cloud.version>
+        <kotlin.version>1.9.25</kotlin.version>
+        <jackson.version>2.18.2</jackson.version>
+        <junit.version>5.11.4</junit.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
     </properties>
 
     <modules>
@@ -78,17 +78,17 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.10.1</version>
+                    <version>3.13.0</version>
                     <configuration>
-                        <source>17</source>
-                        <target>17</target>
+                        <source>21</source>
+                        <target>21</target>
                         <parameters>true</parameters>
                     </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.0.0-M7</version>
+                    <version>3.5.2</version>
                 </plugin>
             </plugins>
         </pluginManagement>

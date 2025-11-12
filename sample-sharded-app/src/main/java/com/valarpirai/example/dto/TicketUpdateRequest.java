@@ -3,7 +3,7 @@ package com.valarpirai.example.dto;
 import com.valarpirai.example.entity.global.Priority;
 import lombok.Data;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 @Data
 public class TicketUpdateRequest {

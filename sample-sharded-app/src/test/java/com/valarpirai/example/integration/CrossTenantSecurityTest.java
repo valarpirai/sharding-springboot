@@ -11,7 +11,6 @@ import com.valarpirai.example.repository.sharded.StatusRepository;
 import com.valarpirai.example.repository.sharded.TicketRepository;
 import com.valarpirai.example.repository.sharded.UserRepository;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.exception.TenantContextException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
