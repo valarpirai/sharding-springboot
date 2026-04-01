@@ -76,57 +76,80 @@ Track completed features, in-progress work, and pending improvements for the sha
 
 ## 🚧 Pending Items
 
+> **Focus Areas**: Resilience, Security, Observability Basics, Developer Experience
+> 
+> All other features (multi-region, reactive, GraphQL, admin UI, etc.) are **out of scope** 
+> for the core library. These can be built as extensions or separate projects.
+
+---
+
 ### Priority 0: Critical (Do First)
 
-#### Observability
+#### 1. Observability Basics
 - [ ] **Spring Boot Actuator Health Indicators**
   - Per-shard database connectivity health
   - Connection pool health (active/idle/waiting)
   - Shard status health check (ACTIVE/MAINTENANCE/READONLY)
   - Tenant-shard mapping cache health
   - Migration status health indicator
+  - **Estimated**: 4-6 hours
 
 - [ ] **Basic Metrics Endpoints**
-  - Connection pool metrics per shard
+  - Connection pool metrics per shard (HikariCP stats)
   - Query execution time tracking
   - Tenant context lookup latency
   - Cache hit/miss rates
+  - **Estimated**: 3-4 hours
 
-#### Resilience
+#### 2. Resilience
 - [ ] **Connection Leak Detection**
   - Automatic detection of unclosed connections
   - Leak reporting and alerting
   - Configurable leak threshold
   - Connection lifecycle tracking
+  - **Estimated**: 4-6 hours
 
 - [ ] **Circuit Breaker Pattern (Per-Shard)**
-  - Automatic detection of failing shards
+  - Automatic detection of failing shards (Resilience4j)
   - Graceful degradation when shard unavailable
   - Configurable failure thresholds and timeout
   - Half-open state for recovery testing
-  - Resilience4j integration
+  - Auto-recovery detection
+  - **Estimated**: 8-10 hours
 
-#### Security
+#### 3. Security
 - [ ] **Tenant Isolation Hardening**
   - Enhanced SQL injection prevention
   - Tenant ID parameter binding verification
   - Whitelist-based query pattern validation
   - Cross-tenant access attempt logging
+  - **Estimated**: 6-8 hours
 
 - [ ] **Audit Logging**
   - All cross-tenant access attempts (including blocked)
   - Data access logging per tenant
   - Admin operations audit trail
-  - Configurable audit log destinations
+  - Configurable audit log destinations (file, database, external)
+  - **Estimated**: 4-6 hours
+
+#### 4. Developer Experience
+- [ ] **Configuration Validation**
+  - Startup validation of all shard configurations
+  - Connection testing on startup (optional)
+  - Clear error messages for misconfigurations
+  - Shard URL reachability checks
+  - Duplicate shard ID detection
+  - **Estimated**: 3-4 hours
 
 ### Priority 1: High (Next Sprint)
 
-#### Observability
+#### 1. Observability Basics
 - [ ] **Micrometer Metrics Integration**
   - Timer metrics: shard lookup, query execution, connection acquisition
   - Gauge metrics: active connections, tenant count per shard, cache size
   - Counter metrics: queries per shard, connection errors, routing failures
   - Custom tags: shard_id, tenant_id, database_type
+  - **Estimated**: 6-8 hours
 
 - [ ] **Structured Logging with MDC**
   - Tenant ID in Mapped Diagnostic Context
@@ -134,98 +157,83 @@ Track completed features, in-progress work, and pending improvements for the sha
   - Correlation IDs across async operations
   - Query logging with execution time
   - Slow query detection and logging
+  - **Estimated**: 4-6 hours
 
-#### Resilience
+#### 2. Resilience
 - [ ] **Automatic Master-Replica Failover**
   - Automatic replica promotion on master failure
   - Connection retry with exponential backoff
   - Health-based replica selection
   - Configurable failover policies
+  - **Estimated**: 8-12 hours
 
 - [ ] **Shard Blacklisting**
   - Temporary blacklist for unhealthy shards
   - Automatic recovery detection
   - Configurable blacklist duration
   - Admin override capabilities
+  - **Estimated**: 6-8 hours
 
-#### Developer Experience
-- [ ] **Configuration Validation**
-  - Startup validation of all shard configurations
-  - Connection testing on startup (optional)
-  - Clear error messages for misconfigurations
-  - Shard URL reachability checks
-  - Duplicate shard ID detection
+#### 3. Security
+- [ ] **Connection Security Enforcement**
+  - Enforce SSL/TLS for all shard connections
+  - Certificate validation
+  - Connection string validation (no plain text passwords in logs)
+  - **Estimated**: 3-4 hours
 
+#### 4. Developer Experience
 - [ ] **Test Utilities**
   - `@WithTenantContext` annotation for tests
   - Mock TenantContext for unit tests
   - TestContainers configuration helpers
   - Multi-tenant test data builders
   - Shard setup utilities for integration tests
+  - **Estimated**: 6-8 hours
 
-### Priority 2: Medium (Future Sprints)
+- [ ] **Enhanced Error Messages**
+  - Clear error messages with actionable suggestions
+  - Error codes for programmatic handling
+  - Context information in exceptions (tenant_id, shard_id)
+  - **Estimated**: 3-4 hours
 
-#### Performance
-- [ ] **Query Result Caching**
-  - @Cacheable support for tenant-scoped queries
-  - Tenant-aware cache keys
-  - Cache invalidation strategies (TTL, event-based)
-  - Multi-level caching (L1: Caffeine, L2: Redis)
+### Priority 2: Polish (Future Sprints)
 
-- [ ] **Smart Read Replica Routing**
-  - Load-based replica selection (not just round-robin)
-  - Replica lag monitoring
-  - Latency-based routing
-  - Automatic failover to master if replica unavailable
-
-- [ ] **Batch Query Optimization**
-  - Bulk operations across multiple tenants
-  - Parallel query execution for multi-tenant ops
-  - Tenant iterator improvements
-  - Batch size optimization
-
-- [ ] **Connection Pool Optimization**
-  - Dynamic pool sizing based on load
-  - Connection pool pre-warming on startup
-  - Idle connection timeout tuning per shard
-  - Pool size recommendations based on metrics
-
-#### Operational Features
-- [ ] **Tenant Migration Tools**
-  - Live tenant migration between shards
-  - Zero-downtime migration support
-  - Migration progress tracking and reporting
-  - Automatic data verification
-  - Migration rollback capabilities
-
-- [ ] **Shard Rebalancing**
-  - Automatic tenant rebalancing across shards
-  - Manual rebalance triggers via API
-  - Cost-based balancing strategies
-  - Capacity planning recommendations
-
-- [ ] **Migration Enhancements**
-  - Pre-migration validation hooks
-  - Post-migration verification hooks
-  - Migration dry-run with detailed report
-  - Migration scheduling (time-based)
-  - Emergency migration stop/pause
-  - Migration retry on failure
-
-#### Observability
-- [ ] **OpenTelemetry Distributed Tracing**
+#### 1. Observability Basics
+- [ ] **OpenTelemetry Distributed Tracing** (Optional)
   - Trace tenant context propagation
   - Trace queries across shards
   - Span for each shard lookup
   - Cross-DataSource operation tracking
-  - Migration execution tracing
+  - **Estimated**: 8-12 hours
 
-#### Testing
+#### 2. Resilience
+- [ ] **Connection Pool Monitoring & Auto-tuning**
+  - Dynamic pool sizing based on load metrics
+  - Connection pool pre-warming on startup
+  - Idle connection timeout tuning per shard
+  - Pool size recommendations based on metrics
+  - **Estimated**: 6-8 hours
+
+- [ ] **Graceful Degradation**
+  - Read-only mode when master unavailable
+  - Stale cache reads when database down
+  - Configurable degradation policies
+  - **Estimated**: 6-8 hours
+
+#### 3. Security
+- [ ] **Enhanced Audit Logging**
+  - Audit log encryption
+  - Tamper-proof audit trail (append-only)
+  - Compliance reporting (GDPR, SOC2)
+  - **Estimated**: 6-8 hours
+
+#### 4. Developer Experience
 - [ ] **Increase Test Coverage to 90%+**
   - Edge case testing
   - Negative path testing
   - Concurrent access stress tests
   - Connection pool exhaustion tests
+  - **Estimated**: 12-16 hours
 
 - [ ] **Performance Testing Framework**
   - Load testing utilities
@@ -233,158 +241,92 @@ Track completed features, in-progress work, and pending improvements for the sha
   - Connection pool stress tests
   - Migration performance benchmarks
   - Multi-tenant concurrent load tests
+  - **Estimated**: 12-16 hours
 
-- [ ] **Chaos Engineering**
+- [ ] **Chaos Engineering Tests**
   - Shard failure simulation
   - Network latency injection
   - Connection timeout testing
   - Partial shard availability tests
-  - Random failure injection
+  - **Estimated**: 8-12 hours
 
-### Priority 3: Nice to Have (Long Term)
+### Out of Scope
 
-#### Advanced Features
-- [ ] **Multi-Region Support**
-  - Region-aware shard routing
-  - Geographic distribution of shards
-  - Latency-based shard selection
-  - GDPR data residency compliance
-  - Cross-region replication
+The following features are **intentionally excluded** from the core library:
 
-- [ ] **Cross-Shard Operations**
-  - Limited cross-shard JOIN support
-  - Aggregation across multiple shards
-  - Distributed query coordination
-  - Cross-shard transaction patterns
+- ❌ Multi-region support (can be built on top)
+- ❌ Cross-shard queries (design anti-pattern)
+- ❌ Reactive/WebFlux support (different paradigm, separate module)
+- ❌ GraphQL support (specialized use case)
+- ❌ Admin UI dashboard (separate application)
+- ❌ CLI tools (can be scripts)
+- ❌ IDE plugins (community contributions)
 
-- [ ] **Saga Pattern Support**
-  - Distributed transaction rollback
-  - Compensation handlers
-  - Saga state persistence
-  - Timeout and retry policies
-
-- [ ] **Alternative Sharding Strategies**
-  - Hash-based sharding (in addition to directory)
-  - Range-based sharding
-  - Composite sharding keys
-  - Custom sharding algorithm plugins
-
-- [ ] **Reactive Support (Spring WebFlux)**
-  - Reactive TenantContext propagation
-  - R2DBC support for reactive database access
-  - Non-blocking shard lookup
-  - Reactive transaction management
-  - Reactor Context integration
-
-- [ ] **GraphQL Support**
-  - Multi-tenant GraphQL gateway
-  - Automatic shard-aware resolvers
-  - Cross-shard GraphQL queries
-  - GraphQL federation support
-
-#### Security
-- [ ] **Row-Level Security (RLS)**
-  - PostgreSQL RLS policy generation
-  - MySQL view-based isolation
-  - Automatic security verification
-  - RLS testing utilities
-
-- [ ] **Encryption**
-  - Per-tenant encryption keys
-  - Key rotation support
-  - Transparent data encryption (TDE) configuration
-  - Enforce SSL/TLS for all connections
-  - Certificate validation
-
-#### Operational Features
-- [ ] **Dynamic Configuration**
-  - Runtime shard addition/removal
-  - Hot-reload of shard configurations
-  - Configuration externalization (Consul, Spring Cloud Config)
-  - Feature flags for gradual rollout
-
-- [ ] **Backup & Recovery**
-  - Per-shard backup coordination
-  - Point-in-time recovery support
-  - Tenant data export/import APIs
-  - Cross-shard consistency snapshots
-
-- [ ] **Tenant Lifecycle Management**
-  - Tenant provisioning API
-  - Tenant deactivation/archival
-  - Tenant deletion with cleanup
-  - Tenant onboarding automation
-
-#### Developer Tools
-- [ ] **CLI Tools**
-  - Tenant inspector (show info, shard, stats)
-  - Shard health checker
-  - Migration executor CLI
-  - Configuration validator
-
-- [ ] **Admin UI Dashboard**
-  - Shard topology visualization
-  - Tenant distribution dashboard
-  - Real-time metrics dashboard
-  - Migration management UI
-  - Tenant search and management
-
-- [ ] **IDE Plugins**
-  - IntelliJ IDEA plugin (live shard info, warnings)
-  - VS Code extension (snippets, indicators)
-  - Tenant context indicators in IDE
-
-#### Documentation
-- [ ] **Interactive Examples**
-  - More sample use cases
-  - Performance tuning guide
-  - Troubleshooting cookbook
-  - Video tutorials
-
-- [ ] **Migration Path Documentation**
-  - From single DB to sharded architecture
-  - Tenant migration between shards guide
-  - Shard split/merge strategies
-  - Production cutover checklists
+These can be built as **extensions, separate modules, or external tools** that leverage the core library.
 
 ---
 
-## 🎯 Quick Wins (Easy + High Impact)
+## 🎯 Quick Wins (High Impact, Low Effort)
 
-These items provide significant value with relatively low effort:
+Start with these to get immediate production value:
 
-1. ✅ **Spotless code formatting** (DONE) - 1 hour
-2. **Spring Boot Actuator health indicators** - 2-3 hours
-3. **Structured logging with MDC (tenant_id/shard_id)** - 1-2 hours
-4. **Configuration validation on startup** - 2-3 hours
-5. **@WithTenantContext test annotation** - 3-4 hours
-6. **Connection leak detection (basic)** - 3-4 hours
-7. **Slow query logging** - 2-3 hours
-8. **Shard status endpoint (actuator)** - 2 hours
+1. ✅ **Spotless code formatting** (DONE)
+2. **Configuration validation** - 3-4 hours
+3. **Health indicators (basic)** - 4-6 hours
+4. **Structured logging with MDC** - 4-6 hours
+5. **Connection leak detection** - 4-6 hours
 
-**Total estimated time for all quick wins: ~15-20 hours**
+**Total: ~15-22 hours → Complete in 2-3 days**
+
+These alone will dramatically improve production readiness.
 
 ---
 
-## 📊 Progress Tracking
+## 📊 Implementation Roadmap
 
-### Sprint 1 (Current)
-- [x] Async context propagation (TenantContextTaskDecorator)
+### Week 1: Quick Wins (Foundation)
+- [x] Async context propagation
 - [x] Spotless code formatting
 - [x] Documentation reorganization
-- [ ] Health indicators (in progress)
+- [ ] Configuration validation (3-4h)
+- [ ] Basic health indicators (4-6h)
+- [ ] Structured logging with MDC (4-6h)
+- [ ] Connection leak detection (4-6h)
 
-### Sprint 2 (Next)
-- [ ] Connection leak detection
-- [ ] Circuit breaker pattern
-- [ ] Basic Micrometer metrics
-- [ ] Configuration validation
+**Total: ~15-22 hours** → Achievable in 2-3 days
 
-### Sprint 3 (Planned)
-- [ ] Structured logging with MDC
-- [ ] Test utilities (@WithTenantContext)
-- [ ] Automatic failover
-- [ ] Security hardening
+### Week 2: Resilience (Critical)
+- [ ] Circuit breaker pattern (8-10h)
+- [ ] Automatic failover (8-12h)
+- [ ] Shard blacklisting (6-8h)
+
+**Total: ~22-30 hours** → Full week
+
+### Week 3: Security (High Priority)
+- [ ] Tenant isolation hardening (6-8h)
+- [ ] Audit logging (4-6h)
+- [ ] Connection security enforcement (3-4h)
+
+**Total: ~13-18 hours** → 2-3 days
+
+### Week 4: Observability & DX (Polish)
+- [ ] Micrometer metrics (6-8h)
+- [ ] Test utilities (6-8h)
+- [ ] Enhanced error messages (3-4h)
+
+**Total: ~15-20 hours** → 2-3 days
+
+### After Month 1: Polish & Advanced
+- Distributed tracing (optional)
+- Performance testing framework
+- Chaos engineering tests
+- Advanced resilience features
+
+---
+
+**Total for Weeks 1-4**: ~65-90 hours (8-11 working days)
+
+This gives you a **production-ready, battle-tested library** in about a month.
 
 ---
 
@@ -392,13 +334,15 @@ These items provide significant value with relatively low effort:
 
 Want to implement one of these features?
 
-1. Check if it's already in progress (create an issue)
-2. Discuss the approach in the issue
-3. Follow existing code patterns and conventions
-4. Include comprehensive tests
-5. Update documentation
-6. Run `mvn spotless:apply` before committing
-7. Create a pull request with clear description
+1. **Check scope**: Only features in P0-P2 are in scope for core library
+2. **Create issue**: Discuss approach before starting
+3. **Follow patterns**: Match existing code style and conventions
+4. **Test thoroughly**: Comprehensive tests required
+5. **Update docs**: Keep documentation in sync
+6. **Format code**: Run `mvn spotless:apply` before committing
+7. **Clear PR**: Describe what, why, and how
+
+**For out-of-scope features**: Consider creating a separate extension library that depends on `sharding-springboot-starter`.
 
 ---
 
