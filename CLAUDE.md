@@ -34,6 +34,10 @@ mvn test -Dtest=ShardingFunctionalityTest
 # Run integration tests only
 mvn test -Dtest="*IT"
 
+# Code formatting with Spotless
+mvn spotless:check    # Check formatting
+mvn spotless:apply    # Apply formatting
+
 # Run sample application
 cd sample-sharded-app && mvn spring-boot:run
 
@@ -48,6 +52,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev,redis
 **Package Structure:**
 - `config/` - Auto-configuration, properties, validation, dual DataSource setup
 - `context/` - TenantContext (thread-local), TenantInfo (immutable holder)
+- `async/` - TenantContextTaskDecorator for async context propagation
 - `lookup/` - Directory-based tenant→shard mapping, DatabaseSqlProvider for DB-specific SQL
 - `routing/` - Connection routing, master-replica selection
 - `validation/` - Query validation (SQL tenant filtering), entity validation (@ShardedEntity)
@@ -152,6 +157,27 @@ try (TenantContext.TenantScope scope = TenantContext.setCurrentTenant(tenantId))
     repository.findAll();
 }
 ```
+
+### Async Context Propagation
+
+For `@Async` methods and async operations, use `TenantContextTaskDecorator` to propagate tenant context across thread boundaries:
+
+```java
+@Bean
+public TaskExecutor taskExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setTaskDecorator(new TenantContextTaskDecorator());
+    return executor;
+}
+
+@Async("taskExecutor")
+public CompletableFuture<Result> asyncOperation(Long tenantId) {
+    // Tenant context automatically propagated
+    return CompletableFuture.completedFuture(repository.findAll());
+}
+```
+
+**Important**: Context must be set in calling thread before async execution. If not set, manually resolve with `ShardUtils.resolveTenantInfo()` inside async method.
 
 ### Entity Annotations
 
