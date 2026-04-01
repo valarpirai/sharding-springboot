@@ -5,6 +5,7 @@ Comprehensive documentation for the sharding-springboot-starter library and samp
 ## Getting Started
 
 - **[Getting Started](guides/getting-started.md)** - Quick start guide, installation, and basic usage
+- **[Production Readiness Assessment](PRODUCTION_READINESS.md)** - ⚠️ Current state and gaps (NOT production ready)
 - **[Database Setup](deployment/database-setup.md)** - Database provisioning and configuration
 
 ## Guides
