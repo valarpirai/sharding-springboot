@@ -1,23 +1,17 @@
-# Java Backend Development Project Overview
+# Sharding Spring Boot Starter
 
-This repository contains a comprehensive multi-tenant database sharding solution with Spring Boot auto-configuration.
+Production-ready multi-tenant database sharding solution with Spring Boot auto-configuration.
 
 ## Project Structure
 
 ```
-java-backend-dev/
-├── sharding-springboot-starter/              # 🆕 NEW: Advanced sharding library (Java + Lombok)
-├── sample-sharded-app/                       # 🆕 NEW: Demo application
-└── PROJECT_OVERVIEW.md                       # This file
+sharding-springboot/
+├── sharding-springboot-starter/   # Core sharding library
+├── sample-sharded-app/            # Demo ticket management application
+└── docs/                          # Comprehensive documentation
 ```
 
-## 🆕 Sharding Spring Boot Starter
-
-**Location**: `sharding-springboot-starter/`
-**Language**: Java with Lombok
-**Purpose**: Production-ready multi-tenant database sharding with comprehensive features
-
-### Key Features Implemented
+## Key Features
 
 ✅ **Directory-Based Sharding** - Tenant-to-shard mapping via `tenant_shard_mapping` table
 ✅ **Multi-Replica Support** - Master-replica configuration with automatic read/write splitting
@@ -192,104 +186,154 @@ The library automatically detects the database type from JDBC URLs and applies a
 - **RANDOM**: Random replica selection
 - **FIRST_AVAILABLE**: Always use first replica
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
-# 1. Build the sharding library
-mvn clean install -Dmaven.test.skip=true
+# 1. Build the library
+mvn clean install
 
-# 2. Set up databases
+# 2. Set up PostgreSQL databases
 cd sample-sharded-app
 psql -U postgres -f database-setup.sql
 
 # 3. Run the sample application
 mvn spring-boot:run
 
-# 4. Access API documentation
-open http://localhost:8080/swagger-ui/
+# 4. Access Swagger UI
+open http://localhost:8080/swagger-ui.html
 ```
 
-## 📄 Additional Documentation
+## Documentation
 
-### Core Documentation
-- **[Migration Guide](doc/MIGRATION_GUIDE.md)** - Complete Liquibase migration guide with strategies
-- **[Idempotency Guide](doc/IDEMPOTENCY.md)** - Understanding migration idempotency
-- **[Zero-Downtime Best Practices](doc/ZERO_DOWNTIME_BEST_PRACTICES.md)** - PayPal-inspired zero-downtime strategies
-- **[Transaction Guide](doc/TRANSACTION_GUIDE.md)** - Transaction patterns for sharded databases
+📚 **[Complete Documentation](docs/)** - Comprehensive guides, deployment, testing, and reference
 
-### Implementation Guides
-- **[Account Signup Flow](doc/ACCOUNT_SIGNUP_FLOW.md)** - Detailed signup implementation
-- **[Custom Shard Lookup](doc/CUSTOM_SHARD_LOOKUP_GUIDE.md)** - Custom lookup implementations
+### Quick Links
 
-### Module Documentation
-- **[Library Specification](sharding-springboot-starter/SPECIFICATION.md)** - Technical specifications
-- **[Sample App Guide](sample-sharded-app/README.md)** - Complete demo application
-- **[Database Setup](sample-sharded-app/DATABASE_SETUP.md)** - Database configuration
+- **[Getting Started](docs/guides/getting-started.md)** - Installation and basic usage
+- **[Migrations Guide](docs/guides/migrations.md)** - Database schema changes across shards
+- **[Transactions Guide](docs/guides/transactions.md)** - Transaction patterns
+- **[Zero Downtime Deployment](docs/deployment/zero-downtime.md)** - Production best practices
+- **[Integration Tests](docs/testing/integration-tests.md)** - Testing guide (69 comprehensive tests)
+- **[Technical Specification](docs/reference/specification.md)** - Complete library reference
 
-## 🚀 Production Deployment
+## Basic Usage
 
-### Database Setup
-1. **Global Database**: Contains `tenant_shard_mapping` and global entities (PostgreSQL by default)
-2. **Shard Databases**: Contains tenant-specific data with replicas (PostgreSQL by default)
-3. **Connection Pools**: Optimized per database type and load with automatic database detection
-4. **Schema Management**: Automatic table creation with database-specific syntax and optimizations
+### 1. Add Dependency
 
-**Quick PostgreSQL Setup:**
-```bash
-cd sample-sharded-app
-psql -U postgres -f database-setup-postgresql.sql
+```xml
+<dependency>
+    <groupId>com.valarpirai</groupId>
+    <artifactId>sharding-springboot-starter</artifactId>
+    <version>1.0.0</version>
+</dependency>
 ```
 
-See `sample-sharded-app/DATABASE_SETUP.md` for detailed setup instructions.
+### 2. Configure
 
-### Configuration Management
-- Externalize database credentials
-- Configure appropriate pool sizes per environment
-- Set validation strictness to STRICT in production
-- Enable JMX monitoring for observability
+```properties
+# Global Database
+app.sharding.global-db.url=jdbc:postgresql://localhost:5432/global_db
+app.sharding.global-db.username=user
+app.sharding.global-db.password=pass
 
-### Scalability
-- **Horizontal**: Add new shards for capacity
-- **Vertical**: Scale individual shard resources
-- **Replica Scaling**: Add read replicas for read-heavy workloads
-- **Tenant Balancing**: Use latest shard feature for growth
+# Shard
+app.sharding.shards.shard1.master.url=jdbc:postgresql://localhost:5432/shard1_db
+app.sharding.shards.shard1.master.username=user
+app.sharding.shards.shard1.master.password=pass
+app.sharding.shards.shard1.latest=true
+```
 
-## 📈 Benefits
+### 3. Mark Sharded Entities
 
-### For Developers
-✅ **Zero Configuration** - Auto-configuration with sensible defaults
-✅ **Type Safety** - Compile-time validation of entity annotations
-✅ **Clear Errors** - Helpful error messages and validation
-✅ **Flexible Validation** - Configurable strictness levels
-✅ **Rich APIs** - Comprehensive utilities for shard management
-✅ **Database Agnostic** - Seamless MySQL and PostgreSQL support with automatic detection
+```java
+@Entity
+@ShardedEntity
+public class Customer {
+    @Column(nullable = false)
+    private Long tenantId;  // Required
+    
+    private String name;
+}
+```
 
-### For Operations
-✅ **Performance** - Database-specific optimizations for MySQL and PostgreSQL
-✅ **Monitoring** - JMX metrics and health endpoints
-✅ **Scalability** - Easy shard addition and tenant balancing
-✅ **Reliability** - Connection pooling and replica support
-✅ **Security** - Query validation prevents data leakage
-✅ **Database Flexibility** - Switch between MySQL and PostgreSQL without code changes
+### 4. Use Tenant Context
 
-### For Business
-✅ **Multi-Tenancy** - Complete tenant isolation
-✅ **Scalability** - Handle millions of tenants across shards
-✅ **Performance** - Optimized database operations
-✅ **Compliance** - Data isolation and tenant security
-✅ **Cost Efficiency** - Resource optimization per shard
+```java
+@Service
+public class CustomerService {
+    public Customer save(Long tenantId, Customer customer) {
+        return TenantContext.executeInTenantContext(tenantId, () -> {
+            return customerRepository.save(customer);
+        });
+    }
+}
+```
 
-## 🔮 Future Enhancements
+## Architecture
 
-Potential areas for extension:
-- Cross-shard joins and distributed queries
-- Automated shard rebalancing
-- Read replica auto-failover
-- GraphQL integration
-- Distributed transaction support
-- Tenant migration utilities
-- Performance analytics dashboard
+### Two-Database Model
+
+1. **Global DB**: Central database for tenant-shard mappings and global entities
+2. **Shard DBs**: Multiple databases with tenant-specific data (master + replicas)
+
+### Package-Based Routing
+
+- Global entities/repos → `*.entity.global`, `*.repository.global`
+- Sharded entities/repos → `*.entity.sharded`, `*.repository.sharded`
+
+### Migration Strategies
+
+- **SEQUENTIAL**: One shard at a time (safest)
+- **PARALLEL**: All shards simultaneously (fastest)
+- **WAVE**: Batches with delays (recommended for production)
+- **CANARY**: Test on one shard first (critical changes)
+
+## Benefits
+
+**For Developers:**
+- ✅ Zero-configuration Spring Boot integration
+- ✅ Type-safe entity validation at compile time
+- ✅ Database-agnostic (PostgreSQL, MySQL with auto-detection)
+- ✅ Comprehensive testing suite (69 integration tests)
+
+**For Operations:**
+- ✅ Multiple migration strategies (sequential, parallel, wave, canary)
+- ✅ Database-specific HikariCP optimizations
+- ✅ JMX metrics and health endpoints
+- ✅ Read-write splitting with replica support
+
+**For Business:**
+- ✅ Complete tenant data isolation
+- ✅ Horizontal scalability (add shards as needed)
+- ✅ Production-ready with zero-downtime deployment patterns
+- ✅ Compliance-friendly with strict query validation
+
+## Sample Application
+
+The `sample-sharded-app` demonstrates a multi-tenant ticket management system:
+
+- **Account signup** with automatic demo environment setup
+- **JWT authentication** with tenant validation
+- **User and ticket management** with role-based permissions
+- **Liquibase migrations** across global DB and shards
+- **Comprehensive tests** including API, security, and migration tests
+
+**API Documentation**: http://localhost:8080/swagger-ui.html (when running)
+
+## Tech Stack
+
+- **Java 21**
+- **Spring Boot 3.4.5**
+- **Hibernate/JPA**
+- **HikariCP** (connection pooling)
+- **Liquibase** (schema migrations)
+- **PostgreSQL** / **MySQL** (auto-detected)
+- **TestContainers** (integration tests)
+
+## License
+
+Licensed under the MIT License. See `LICENSE` file for details.
 
 ---
 
-This project provides a production-ready foundation for multi-tenant applications requiring sophisticated database sharding with comprehensive Spring Boot integration.
+**For complete documentation, see [`docs/`](docs/) directory.**
