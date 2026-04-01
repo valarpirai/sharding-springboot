@@ -33,6 +33,7 @@ Comprehensive documentation for the sharding-springboot-starter library and samp
 ## Reference
 
 - **[Technical Specification](reference/specification.md)** - Complete library specifications, configuration options, and architecture details
+- **[Features & Roadmap](FEATURES.md)** - Completed features, pending improvements, and development roadmap
 
 ## Archive
 
