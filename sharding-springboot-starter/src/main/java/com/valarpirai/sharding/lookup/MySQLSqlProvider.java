@@ -1,8 +1,13 @@
 package com.valarpirai.sharding.lookup;
 
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
 /**
  * MySQL-specific SQL provider for tenant_shard_mapping table operations.
  */
+@Component
+@Order(2)
 public class MySQLSqlProvider extends AbstractSqlProvider {
 
     @Override

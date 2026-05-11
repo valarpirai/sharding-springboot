@@ -1,7 +1,11 @@
 package com.valarpirai.sharding.config;
 
 import com.valarpirai.sharding.iterator.TenantIterator;
+import com.valarpirai.sharding.lookup.DatabaseSqlProvider;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
+import com.valarpirai.sharding.lookup.H2SqlProvider;
+import com.valarpirai.sharding.lookup.MySQLSqlProvider;
+import com.valarpirai.sharding.lookup.PostgreSQLSqlProvider;
 import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
 import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.ShardUtils;
@@ -25,6 +29,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import jakarta.annotation.PostConstruct;
 import javax.sql.DataSource;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -35,7 +40,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Configuration
 @EnableConfigurationProperties(ShardingConfigProperties.class)
 @Import({CacheConfiguration.class,
-         ShardingJpaAutoConfiguration.class})
+         ShardingJpaAutoConfiguration.class,
+         H2SqlProvider.class,
+         MySQLSqlProvider.class,
+         PostgreSQLSqlProvider.class})
 public class ShardingAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardingAutoConfiguration.class);
@@ -89,11 +97,12 @@ public class ShardingAutoConfiguration {
 
     /**
      * Database SQL provider factory for database-agnostic operations.
+     * Receives all DatabaseSqlProvider beans discovered by component scanning.
      */
     @Bean
     @ConditionalOnMissingBean
-    public DatabaseSqlProviderFactory databaseSqlProviderFactory() {
-        return new DatabaseSqlProviderFactory();
+    public DatabaseSqlProviderFactory databaseSqlProviderFactory(List<DatabaseSqlProvider> providers) {
+        return new DatabaseSqlProviderFactory(providers);
     }
 
     /**

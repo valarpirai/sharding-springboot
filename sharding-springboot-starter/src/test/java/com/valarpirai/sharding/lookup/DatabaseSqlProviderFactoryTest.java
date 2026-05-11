@@ -19,6 +19,48 @@ class DatabaseSqlProviderFactoryTest {
         factory = new DatabaseSqlProviderFactory();
     }
 
+    // ---- OCP: extension without modification ----
+
+    @Test
+    void customProvider_canBeRegisteredWithoutModifyingFactory() {
+        DatabaseSqlProvider oracle = new DatabaseSqlProvider() {
+            @Override public String getDatabaseType() { return "Oracle"; }
+            @Override public String getTableExistsQuery(String t) { return ""; }
+            @Override public String getCreateTenantShardMappingTableSql() { return ""; }
+            @Override public String[] getCreateIndexesSql() { return new String[0]; }
+            @Override public String getCurrentDatabaseFunction() { return ""; }
+            @Override public String getTimestampWithCurrentDefaultColumn() { return ""; }
+            @Override public boolean supports(String url) {
+                return url != null && url.toLowerCase().contains("oracle");
+            }
+        };
+
+        DatabaseSqlProviderFactory extended = new DatabaseSqlProviderFactory(
+            List.of(new H2SqlProvider(), new MySQLSqlProvider(), new PostgreSQLSqlProvider(), oracle)
+        );
+
+        DatabaseSqlProvider found = extended.getProvider("jdbc:oracle:thin:@localhost:1521:xe");
+        assertEquals("Oracle", found.getDatabaseType());
+        assertEquals(4, extended.getSupportedDatabases().size());
+        assertTrue(extended.getSupportedDatabases().contains("Oracle"));
+    }
+
+    @Test
+    void injectionConstructor_preservesOrder() {
+        DatabaseSqlProviderFactory ordered = new DatabaseSqlProviderFactory(
+            List.of(new H2SqlProvider(), new MySQLSqlProvider(), new PostgreSQLSqlProvider())
+        );
+        List<String> dbs = ordered.getSupportedDatabases();
+        assertEquals(List.of("H2", "MySQL", "PostgreSQL"), dbs);
+    }
+
+    @Test
+    void noArgConstructor_registersBuiltInProviders() {
+        List<String> dbs = factory.getSupportedDatabases();
+        assertEquals(3, dbs.size());
+        assertTrue(dbs.containsAll(List.of("H2", "MySQL", "PostgreSQL")));
+    }
+
     @Test
     void testGetProviderForMySQLUrl() {
         // Given

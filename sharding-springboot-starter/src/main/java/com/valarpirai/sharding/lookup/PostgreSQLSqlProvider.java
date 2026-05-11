@@ -1,8 +1,13 @@
 package com.valarpirai.sharding.lookup;
 
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
 /**
  * PostgreSQL-specific SQL provider for tenant_shard_mapping table operations.
  */
+@Component
+@Order(3)
 public class PostgreSQLSqlProvider extends AbstractSqlProvider {
 
     @Override

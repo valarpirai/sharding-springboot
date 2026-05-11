@@ -1,8 +1,14 @@
 package com.valarpirai.sharding.lookup;
 
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
 /**
  * H2 database-specific SQL provider for testing.
+ * Registered at Order(1) so it is matched before MySQL/PostgreSQL providers.
  */
+@Component
+@Order(1)
 public class H2SqlProvider extends AbstractSqlProvider {
 
     @Override

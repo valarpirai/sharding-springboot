@@ -2,23 +2,32 @@ package com.valarpirai.sharding.lookup;
 
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
  * Factory for creating database-specific SQL providers based on JDBC URL.
+ *
+ * When running inside a Spring context, all {@link DatabaseSqlProvider} beans are
+ * injected automatically (ordered by {@code @Order}). To support a new database,
+ * create a {@code @Component} that implements {@code DatabaseSqlProvider} — no
+ * changes to this class are required.
+ *
+ * Outside Spring (e.g. tests), the no-arg constructor registers the built-in
+ * H2, MySQL, and PostgreSQL providers in priority order.
  */
 @Component
 public class DatabaseSqlProviderFactory {
 
     private final List<DatabaseSqlProvider> providers;
 
+    /** Spring constructor — receives all DatabaseSqlProvider beans, ordered by @Order. */
+    public DatabaseSqlProviderFactory(List<DatabaseSqlProvider> providers) {
+        this.providers = List.copyOf(providers);
+    }
+
+    /** No-arg constructor for direct instantiation outside a Spring context. */
     public DatabaseSqlProviderFactory() {
-        this.providers = Arrays.asList(
-            new H2SqlProvider(),
-            new MySQLSqlProvider(),
-            new PostgreSQLSqlProvider()
-        );
+        this(List.of(new H2SqlProvider(), new MySQLSqlProvider(), new PostgreSQLSqlProvider()));
     }
 
     /**
@@ -34,13 +43,11 @@ public class DatabaseSqlProviderFactory {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException(
                 "Unsupported database URL: " + jdbcUrl +
-                ". Supported databases: H2, MySQL, PostgreSQL"));
+                ". Supported databases: " + getSupportedDatabases()));
     }
 
     /**
-     * Get all supported database types.
-     *
-     * @return list of supported database type names
+     * Get all supported database type names, in detection priority order.
      */
     public List<String> getSupportedDatabases() {
         return providers.stream()
