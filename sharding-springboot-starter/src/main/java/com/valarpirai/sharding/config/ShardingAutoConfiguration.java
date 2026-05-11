@@ -8,7 +8,10 @@ import com.valarpirai.sharding.lookup.MySQLSqlProvider;
 import com.valarpirai.sharding.lookup.PostgreSQLSqlProvider;
 import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
 import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
+import com.valarpirai.sharding.lookup.ShardConfigService;
+import com.valarpirai.sharding.lookup.ShardResolutionService;
 import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.lookup.TenantAssignmentService;
 import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
 import com.valarpirai.sharding.routing.RoutingDataSource;
 import com.valarpirai.sharding.routing.ShardDataSources;
@@ -116,14 +119,35 @@ public class ShardingAutoConfiguration {
         return new TenantShardMappingRepository(globalJdbcTemplate, shardingConfig, sqlProviderFactory);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public ShardConfigService shardConfigService() {
+        return new ShardConfigService(shardingConfig);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantAssignmentService tenantAssignmentService(ITenantShardMappingRepo mappingRepo,
+                                                           ShardConfigService shardConfigService) {
+        return new TenantAssignmentService(mappingRepo, shardConfigService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ShardResolutionService shardResolutionService(ITenantShardMappingRepo mappingRepo,
+                                                         ShardAwareDataSourceDelegate shardDelegate) {
+        return new ShardResolutionService(mappingRepo, shardDelegate);
+    }
+
     /**
-     * Shard utilities for convenient shard operations.
+     * Facade over the three focused shard services. Kept for backward compatibility.
      */
     @Bean
     @ConditionalOnMissingBean
-    public ShardUtils shardUtils(ITenantShardMappingRepo shardLookupService,
-                                 ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
-        return new ShardUtils(shardLookupService, shardingConfig, shardAwareDataSourceDelegate);
+    public ShardUtils shardUtils(ShardConfigService shardConfigService,
+                                 TenantAssignmentService tenantAssignmentService,
+                                 ShardResolutionService shardResolutionService) {
+        return new ShardUtils(shardConfigService, tenantAssignmentService, shardResolutionService);
     }
 
     /**

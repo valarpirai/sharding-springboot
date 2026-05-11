@@ -4,6 +4,7 @@ import com.valarpirai.sharding.annotation.ShardedEntity;
 import com.valarpirai.sharding.config.ShardingAutoConfiguration;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
+import com.valarpirai.sharding.lookup.ShardStatistics;
 import com.valarpirai.sharding.lookup.ShardUtils;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.junit.jupiter.api.AfterEach;
@@ -159,7 +160,7 @@ class ShardingIntegrationTest {
         assertEquals("shard2", movedMapping.get().getShardId());
 
         // Test getting shard statistics
-        ShardUtils.ShardStatistics stats = shardUtils.getShardStatistics();
+        ShardStatistics stats = shardUtils.getShardStatistics();
         assertNotNull(stats);
         assertTrue(stats.totalTenants() > 0);
         assertTrue(stats.tenantDistribution().size() > 0);
@@ -225,7 +226,7 @@ class ShardingIntegrationTest {
         }
 
         // Test shard distribution
-        ShardUtils.ShardStatistics stats = shardUtils.getShardStatistics();
+        ShardStatistics stats = shardUtils.getShardStatistics();
         assertTrue(stats.totalTenants() >= 10);
         assertTrue(stats.tenantDistribution().containsKey("shard1"));
         assertTrue(stats.tenantDistribution().containsKey("shard2"));
