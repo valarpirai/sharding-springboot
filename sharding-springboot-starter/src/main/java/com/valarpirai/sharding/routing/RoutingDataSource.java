@@ -105,19 +105,17 @@ public class RoutingDataSource extends AbstractDataSource {
                 return result;
             }
 
-            // If no tenant context or no pre-resolved shard, use global database
+            // No tenant context — route to global database
             if (tenantInfo == null) {
-                logger.info("DATASOURCE DECISION: No tenant context - using global DataSource");
-                DataSource result = shardAwareDataSourceDelegate.routeDataSource(false);
-                logger.info("DEFAULT GLOBAL DATASOURCE: {}", result.getClass().getSimpleName());
-                return result;
+                logger.debug("No tenant context — routing to global DataSource");
+                return shardAwareDataSourceDelegate.getGlobalDataSource();
             }
 
-            // Fallback to dynamic routing via ConnectionRouter (should rarely happen)
-            logger.info("DATASOURCE DECISION: Using ConnectionRouter for dynamic DataSource resolution");
-            DataSource result = shardAwareDataSourceDelegate.routeDataSource(true);
-            logger.info("DYNAMIC ROUTED DATASOURCE: {}", result.getClass().getSimpleName());
-            return result;
+            // TenantInfo present but shardDataSource not pre-resolved — programming error
+            throw new RoutingException(
+                "TenantInfo is set but shardDataSource is not pre-resolved for tenant " +
+                tenantInfo.tenantId() + ". Call ShardingFacade.resolveAndSetTenantContext() " +
+                "before accessing sharded data.");
 
         } catch (RoutingException e) {
             logger.error("Failed to route connection: {}", e.getMessage());

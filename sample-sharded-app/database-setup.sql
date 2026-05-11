@@ -9,6 +9,7 @@
 -- Create databases (will error if they exist, that's ok)
 CREATE DATABASE global_db;
 CREATE DATABASE shard1_db;
+CREATE DATABASE shard2_db;
 
 -- ===========================
 -- Global Database Setup
@@ -178,6 +179,77 @@ CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(account_id, priority)
 CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(account_id, category);
 CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(account_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tickets_updated_at ON tickets(account_id, updated_at DESC);
+
+-- ===========================
+-- Shard 2 Database Setup
+-- ===========================
+
+\c shard2_db;
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    role_id BIGINT NOT NULL,
+    active BOOLEAN DEFAULT true,
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT false,
+    CONSTRAINT uk_users_account_email UNIQUE (account_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    id BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    permissions_mask BIGINT NOT NULL DEFAULT 0,
+    is_system_role BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT false,
+    CONSTRAINT uk_roles_account_name UNIQUE (account_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS status (
+    id BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    color VARCHAR(7),
+    is_default BOOLEAN DEFAULT false,
+    is_closed BOOLEAN DEFAULT false,
+    position INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT false,
+    CONSTRAINT uk_status_account_name UNIQUE (account_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS tickets (
+    id BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    description TEXT,
+    requester_id BIGINT NOT NULL,
+    responder_id BIGINT NULL,
+    status_id BIGINT NOT NULL,
+    priority VARCHAR(20) DEFAULT 'MEDIUM',
+    category VARCHAR(100),
+    subcategory VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    deleted BOOLEAN DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_account_id ON users(account_id);
+CREATE INDEX IF NOT EXISTS idx_roles_account_id ON roles(account_id);
+CREATE INDEX IF NOT EXISTS idx_status_account_id ON status(account_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_account_id ON tickets(account_id);
 
 -- ===========================
 -- Sample Data for Development

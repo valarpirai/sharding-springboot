@@ -38,7 +38,8 @@ class ShardingAutoConfigurationTest {
                 .run(context -> {
                     // Verify core beans are created
                     assertThat(context).hasSingleBean(ShardingConfigProperties.class);
-                    assertThat(context).hasSingleBean(DataSource.class);
+                    assertThat(context).hasBean("globalDataSource");
+                    assertThat(context).hasBean("primaryDataSource");
                     assertThat(context).hasSingleBean(JdbcTemplate.class);
                     assertThat(context).hasSingleBean(DatabaseSqlProviderFactory.class);
                     assertThat(context).hasSingleBean(com.valarpirai.sharding.lookup.ITenantShardMappingRepo.class);

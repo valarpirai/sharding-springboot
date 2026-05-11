@@ -9,6 +9,7 @@ import com.valarpirai.sharding.lookup.PostgreSQLSqlProvider;
 import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
 import com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo;
 import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
+
 import com.valarpirai.sharding.lookup.ShardConfigService;
 import com.valarpirai.sharding.lookup.ShardResolutionService;
 import com.valarpirai.sharding.lookup.ShardingFacade;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -95,7 +97,7 @@ public class ShardingAutoConfiguration {
      */
     @Bean("globalJdbcTemplate")
     @ConditionalOnMissingBean(name = "globalJdbcTemplate")
-    public JdbcTemplate globalJdbcTemplate(DataSource globalDataSource) {
+    public JdbcTemplate globalJdbcTemplate(@Qualifier("globalDataSource") DataSource globalDataSource) {
         return new JdbcTemplate(globalDataSource);
     }
 
@@ -208,9 +210,8 @@ public class ShardingAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ShardDataSourceRouter shardAwareDataSourceDelegate(Map<String, ShardDataSources> shardDataSources,
-                                                         DataSource globalDataSource,
-                                                         ITenantShardMappingReadRepo shardLookupService) {
-        return new ShardDataSourceRouter(shardLookupService, shardDataSources, globalDataSource);
+                                                         @Qualifier("globalDataSource") DataSource globalDataSource) {
+        return new ShardDataSourceRouter(shardDataSources, globalDataSource);
     }
 
     /**
@@ -218,7 +219,7 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @Primary
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(name = "primaryDataSource")
     public DataSource primaryDataSource(ShardDataSourceRouter shardAwareDataSourceDelegate) {
         logger.info("Creating primary routing DataSource");
 
