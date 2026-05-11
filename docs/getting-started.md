@@ -84,17 +84,17 @@ public class Customer {
 
 ### 4. Use Tenant Context
 
-`TenantContext` requires a fully-resolved `TenantInfo` — inject `ShardUtils` to obtain one:
+`TenantContext` requires a fully-resolved `TenantInfo` — inject `ShardingFacade` to obtain one:
 
 ```java
 @Service
 public class CustomerService {
 
     @Autowired private CustomerRepository repository;
-    @Autowired private ShardUtils shardUtils;
+    @Autowired private ShardingFacade shardingFacade;
 
     public Customer save(Long tenantId, Customer customer) {
-        TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, false)
+        TenantInfo tenantInfo = shardingFacade.resolveTenantInfo(tenantId, false)
             .orElseThrow(() -> new ShardLookupException("No active shard for tenant: " + tenantId));
         return TenantContext.executeInTenantContext(tenantInfo, () -> repository.save(customer));
     }
@@ -167,11 +167,11 @@ All sharded operations require a `TenantInfo` (tenant ID + shard ID + pre-resolv
 
 ```java
 // Scoped execution (service layer)
-TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, false).orElseThrow(...);
+TenantInfo tenantInfo = shardingFacade.resolveTenantInfo(tenantId, false).orElseThrow(...);
 TenantContext.executeInTenantContext(tenantInfo, () -> repository.findAll());
 
 // Request-scoped (filter/controller layer)
-shardUtils.resolveAndSetTenantContext(tenantId, false);
+shardingFacade.resolveAndSetTenantContext(tenantId, false);
 try {
     // handle request
 } finally {
@@ -232,8 +232,8 @@ public SignupResponse signup(SignupRequest request) {
     Account account = null;
     try {
         account = accountRepository.save(newAccount);           // global DB
-        shardUtils.assignTenantToLatestShard(account.getId());  // create mapping
-        shardUtils.resolveAndSetTenantContext(account.getId(), false); // set shard context
+        shardingFacade.assignTenantToLatestShard(account.getId());  // create mapping
+        shardingFacade.resolveAndSetTenantContext(account.getId(), false); // set shard context
         User user = userRepository.save(newUser);               // shard DB
         return success(account, user);
     } catch (Exception e) {

@@ -119,7 +119,7 @@ The following test compilation errors exist and need to be addressed:
 **MigrationReport API Changes**:
 - `isCompleted()` - Method may have been removed/renamed
 
-**ShardUtils.ShardStatistics API Changes**:
+**ShardingFacade.ShardStatistics API Changes**:
 - `getShardDistribution()` - Method may have been removed/renamed
 
 **Repository Methods**:

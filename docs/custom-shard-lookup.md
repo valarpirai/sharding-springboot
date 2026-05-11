@@ -234,8 +234,8 @@ public class HybridShardLookupService implements ITenantShardMappingRepo {
 
 All these components automatically receive your custom implementation:
 
-- **ShardAwareDataSourceDelegate**: Routes database connections
-- **ShardUtils**: Utility methods for shard operations
+- **ShardDataSourceRouter**: Routes database connections
+- **ShardingFacade**: Utility methods for shard operations
 - **TenantIterator**: Batch processing across tenants
 - **ShardSelectorFilter**: HTTP request shard resolution
 

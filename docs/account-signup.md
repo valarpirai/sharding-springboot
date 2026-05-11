@@ -29,11 +29,11 @@ account = accountRepository.save(account);
 
 ```java
 // Assign to the shard marked latest=true in configuration
-shardUtils.assignTenantToLatestShard(account.getId());
+shardingFacade.assignTenantToLatestShard(account.getId());
 ```
 
 **What happens:**
-- `ShardUtils.assignTenantToLatestShard()` calls `getLatestShard()` then `shardLookupService.createMapping()`
+- `ShardingFacade.assignTenantToLatestShard()` calls `getLatestShard()` then `shardLookupService.createMapping()`
 - Creates a row in `tenant_shard_mapping` in the global database linking `tenant_id → shard_id`
 - All future read/write operations for this tenant are routed to this shard
 
@@ -41,7 +41,7 @@ shardUtils.assignTenantToLatestShard(account.getId());
 
 ```java
 // 4. Resolve full TenantInfo (shard DataSource) and set context
-boolean resolved = shardUtils.resolveAndSetTenantContext(account.getId(), false);
+boolean resolved = shardingFacade.resolveAndSetTenantContext(account.getId(), false);
 
 // 5. Create ADMIN role first (needed for admin user)
 Role adminRole = createAdminRole(account.getId());

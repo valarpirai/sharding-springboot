@@ -42,7 +42,7 @@ Track completed features, in-progress work, and pending improvements for the sha
 - [x] Zero-config setup with sensible defaults
 - [x] Comprehensive error messages
 - [x] TenantContext helper methods (executeInTenantContext)
-- [x] ShardUtils for manual shard operations
+- [x] ShardingFacade for manual shard operations
 
 ### Async Support
 - [x] TenantContextTaskDecorator for async context propagation

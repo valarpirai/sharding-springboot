@@ -79,17 +79,17 @@ Global entities (no `@ShardedEntity`) are stored in the global database.
 
 ### Set tenant context
 
-Inject `ShardUtils` to resolve a `TenantInfo` before any sharded operation:
+Inject `ShardingFacade` to resolve a `TenantInfo` before any sharded operation:
 
 ```java
 @Service
 public class TicketService {
 
     @Autowired private TicketRepository repository;
-    @Autowired private ShardUtils shardUtils;
+    @Autowired private ShardingFacade shardingFacade;
 
     public Ticket create(Long tenantId, Ticket ticket) {
-        TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, false)
+        TenantInfo tenantInfo = shardingFacade.resolveTenantInfo(tenantId, false)
             .orElseThrow(() -> new ShardLookupException("No active shard for tenant: " + tenantId));
         return TenantContext.executeInTenantContext(tenantInfo, () -> repository.save(ticket));
     }
@@ -99,7 +99,7 @@ public class TicketService {
 For request-scoped context (filter/controller layer):
 
 ```java
-shardUtils.resolveAndSetTenantContext(tenantId, false); // false = master, true = replica
+shardingFacade.resolveAndSetTenantContext(tenantId, false); // false = master, true = replica
 try {
     // handle request
 } finally {

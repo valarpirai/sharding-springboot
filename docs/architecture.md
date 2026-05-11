@@ -30,20 +30,17 @@ HTTP Request
     ▼
 ShardSelectorFilter
     │  extracts tenant ID from header (account-id)
-    │  calls shardUtils.resolveAndSetTenantContext(tenantId, readOnly)
+    │  calls shardingFacade.resolveAndSetTenantContext(tenantId, readOnly)
     │
     ▼
-ITenantShardMappingRepo.findShardByTenantId(tenantId)
-    │  queries tenant_shard_mapping in global DB (cached)
-    │  returns TenantShardMapping { tenantId, shardId }
-    │
-    ▼
-ShardAwareDataSourceDelegate.getShardDataSource(shardId, readOnly)
-    │  selects master or replica DataSource
+ShardResolutionService.resolveTenantInfo(tenantId, readOnly)
+    │  looks up tenant_shard_mapping in global DB (cached)
+    │  calls ShardDataSourceRouter.getShardDataSource(shardId, readOnly)
+    │  returns TenantInfo { tenantId, shardId, readOnly, DataSource }
     │
     ▼
 TenantContext.setTenantInfo(TenantInfo)
-    │  stores TenantInfo in ThreadLocal: { tenantId, shardId, readOnly, DataSource }
+    │  stores TenantInfo in ThreadLocal
     │
     ▼
 JPA / JDBC Operation
@@ -51,7 +48,7 @@ JPA / JDBC Operation
     ▼
 RoutingDataSource.determineTargetDataSource()
     │  reads TenantContext → returns pre-resolved shard DataSource
-    │  (non-sharded entity → returns globalDataSource instead)
+    │  (non-sharded entity → returns globalDataSource)
     │
     ▼
 Database Query Executed
@@ -71,14 +68,18 @@ ShardSelectorFilter (finally)
 ShardingAutoConfiguration
 ├── globalDataSource              (HikariCP → global DB)
 ├── globalJdbcTemplate
-├── DatabaseSqlProviderFactory    (auto-detects PostgreSQL/MySQL/H2)
+├── DatabaseSqlProviderFactory    (auto-detects PostgreSQL/MySQL/H2 from JDBC URL)
+│     └── H2/MySQL/PostgreSQLSqlProvider  (extend AbstractSqlProvider)
 ├── ITenantShardMappingRepo       (@ConditionalOnMissingBean → replaceable)
-│     └── TenantShardMappingRepository (default JDBC implementation)
+│     └── TenantShardMappingRepository  (default JDBC implementation)
+├── ShardConfigService            (reads ShardingConfigProperties only, no I/O)
+├── TenantAssignmentService       (tenant-to-shard lookups + assignments via repo)
+├── ShardResolutionService        (resolves TenantInfo with pre-resolved DataSource)
+├── ShardDataSourceRouter         (master/replica selection, holds shard DataSource map)
 ├── shardDataSources              (Map<shardId, ShardDataSources>)
-│     └── ShardDataSources        (master DataSource + replica DataSources)
-├── ShardAwareDataSourceDelegate  (routes to correct shard DataSource)
-├── RoutingDataSource             (@Primary DataSource — wraps the delegate)
-├── ShardUtils                    (public API for shard operations)
+│     └── ShardDataSources        (master DataSource + replica DataSources per shard)
+├── RoutingDataSource             (@Primary DataSource — reads DataSource from TenantContext)
+├── ShardingFacade                (public facade over the three shard services)
 ├── TenantIterator                (batch processing across all tenants)
 ├── EntityValidator               (startup check for @ShardedEntity)
 ├── ShardingConfigurationValidator
@@ -86,8 +87,8 @@ ShardingAutoConfiguration
 ├── CacheConfiguration            (Caffeine or Redis)
 │
 └── ShardingJpaAutoConfiguration  (@ConditionalOnProperty dual-datasource.enabled)
-      ├── shardedEntityManagerFactory   (routes sharded packages → RoutingDataSource)
-      ├── globalEntityManagerFactory    (routes global packages → globalDataSource)
+      ├── shardedEntityManagerFactory  (sharded packages → @Primary RoutingDataSource)
+      ├── globalEntityManagerFactory   (global packages → globalDataSource)
       ├── shardedTransactionManager
       └── globalTransactionManager
 ```
@@ -111,19 +112,23 @@ All beans use `@ConditionalOnMissingBean` — any bean can be overridden by decl
 
 | Class | Role |
 |-------|------|
-| `ITenantShardMappingRepo` | Interface — implement this to replace the default DB-backed lookup |
-| `TenantShardMappingRepository` | Default implementation; queries `tenant_shard_mapping` via JDBC |
-| `ShardUtils` | Public API: `resolveTenantInfo()`, `resolveAndSetTenantContext()`, `assignTenantToLatestShard()`, `getTenantsInShard()`, `getShardStatistics()` |
-| `DatabaseSqlProviderFactory` | Auto-detects DB type from JDBC URL; returns DB-specific SQL |
+| `ITenantShardMappingReadRepo` | Read-only interface; routing and iteration consumers depend on this |
+| `ITenantShardMappingRepo` | Full interface (read + write + cache); extends the read interface |
+| `TenantShardMappingRepository` | Default JDBC implementation of `ITenantShardMappingRepo` |
+| `ShardConfigService` | Reads `ShardingConfigProperties`; no I/O |
+| `TenantAssignmentService` | Tenant-to-shard lookups, assignments, and distribution queries |
+| `ShardResolutionService` | Resolves `TenantInfo` with pre-resolved shard `DataSource`; sets `TenantContext` |
+| `ShardingFacade` | Public-facing Spring `@Component`; delegates to the three focused services above |
+| `DatabaseSqlProviderFactory` | Picks the right `DatabaseSqlProvider` by JDBC URL; extensible via `@Component` |
+| `AbstractSqlProvider` | Base class with shared DDL for `tenant_shard_mapping`; subclasses add DB-specific clauses |
 
 ### Routing Layer (`routing/`)
 
 | Class | Role |
 |-------|------|
-| `RoutingDataSource` | Spring `AbstractRoutingDataSource`; calls `determineTargetDataSource()` on every `getConnection()` |
-| `ShardAwareDataSourceDelegate` | Reads `TenantContext`; returns master or replica DataSource; falls back to global for non-sharded entities |
+| `RoutingDataSource` | `@Primary` `AbstractDataSource`; reads pre-resolved `DataSource` from `TenantContext` on every `getConnection()` |
+| `ShardDataSourceRouter` | Holds master + replica `DataSource` map per shard; selects master or replica based on `readOnlyMode` |
 | `ShardDataSources` | Container for one shard's master + replica DataSources; round-robin replica selection |
-| `TenantAwareDataSourceDelegate` | Used by `ShardingJpaAutoConfiguration` to separate global vs sharded JPA contexts |
 
 ### Migration Layer (`migration/`)
 
@@ -141,6 +146,7 @@ All beans use `@ConditionalOnMissingBean` — any bean can be overridden by decl
 | `TenantContextTaskDecorator` | Copies `TenantInfo` from calling thread into `@Async` thread pool threads |
 | `TenantIterator` | Batch/async processing across all active tenants; handles context setup per tenant |
 | `EntityValidator` | Startup: verifies all `@Entity` classes in sharded packages have `@ShardedEntity` and a tenant column |
+| `HikariConfigFactory` | Creates and validates `HikariConfig` objects with database-specific pool defaults |
 
 ---
 
@@ -150,17 +156,18 @@ All beans use `@ConditionalOnMissingBean` — any bean can be overridden by decl
 com.valarpirai.sharding/
 ├── annotation/       @ShardedEntity marker
 ├── async/            TenantContextTaskDecorator
-├── config/           Auto-configuration, properties, HikariCP utils
+├── config/           Auto-configuration, properties, HikariConfigFactory
 ├── context/          TenantContext, TenantInfo
 ├── exception/        ShardLookupException, RoutingException,
 │                     EntityValidationException, TenantIteratorException,
 │                     MigrationException
 ├── iterator/         TenantIterator
-├── lookup/           ITenantShardMappingRepo, TenantShardMappingRepository,
-│                     ShardUtils, DatabaseSqlProvider implementations
+├── lookup/           ITenantShardMappingRepo (+ Read/Write/Cache sub-interfaces),
+│                     TenantShardMappingRepository, ShardingFacade,
+│                     ShardConfigService, TenantAssignmentService,
+│                     ShardResolutionService, DatabaseSqlProvider implementations
 ├── migration/        LiquibaseMigrationOrchestrator and supporting classes
-├── routing/          ShardAwareDataSourceDelegate, RoutingDataSource,
-│                     ShardDataSources, TenantAwareDataSourceDelegate
+├── routing/          ShardDataSourceRouter, RoutingDataSource, ShardDataSources
 └── validation/       EntityValidator
 ```
 
@@ -174,6 +181,8 @@ com.valarpirai.sharding/
 app.sharding.dual-datasource.global-entity-base-package   → globalEntityManagerFactory
 app.sharding.dual-datasource.sharded-entity-base-package  → shardedEntityManagerFactory
 ```
+
+Both EMFs use the `@Primary RoutingDataSource`. The routing DataSource returns the global DataSource when no tenant context is set (global entity operations), and the pre-resolved shard DataSource when `TenantContext` is populated.
 
 Repository interfaces must live in the matching package:
 ```
@@ -189,8 +198,9 @@ Wrong package → wrong `EntityManagerFactory` → `NoTransactionException` or s
 
 | What to replace | How |
 |-----------------|-----|
-| Tenant-to-shard lookup (DB, external API, config file) | Implement `ITenantShardMappingRepo`, declare as `@Bean` — default is auto-disabled via `@ConditionalOnMissingBean` |
-| Any infrastructure bean | Declare a `@Bean` of the same type in your app context |
+| Tenant-to-shard lookup (DB, external API, config file) | Implement `ITenantShardMappingRepo`, declare as `@Bean` — default disabled via `@ConditionalOnMissingBean` |
+| Add a new database type (DDL generation) | Create a `@Component` implementing `DatabaseSqlProvider` with `@Order`; no factory changes needed |
+| Any infrastructure bean | Declare a `@Bean` of the same type in your application context |
 | Cache backend | Set `app.sharding.cache.type=REDIS` and configure Redis properties |
 | Async thread pool | Declare a `TaskExecutor` bean with `TenantContextTaskDecorator` attached |
 
@@ -198,15 +208,15 @@ Wrong package → wrong `EntityManagerFactory` → `NoTransactionException` or s
 
 ## Read/Write Splitting
 
-`ShardDataSources` holds replicas in a list. `ShardAwareDataSourceDelegate` selects:
+`ShardDataSources` holds replicas in a list. `ShardDataSourceRouter` selects:
 - `readOnlyMode = false` → master DataSource
-- `readOnlyMode = true` → replica (round-robin across available replicas; falls back to master if none configured)
+- `readOnlyMode = true` → replica (round-robin; falls back to master if none configured)
 
-Set `readOnlyMode` when building `TenantInfo`:
+Set `readOnlyMode` via `ShardingFacade`:
 ```java
-// write
-shardUtils.resolveTenantInfo(tenantId, false)
+// write (master)
+shardingFacade.resolveTenantInfo(tenantId, false)
 
-// read
-shardUtils.resolveTenantInfo(tenantId, true)
+// read (replica)
+shardingFacade.resolveTenantInfo(tenantId, true)
 ```

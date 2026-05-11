@@ -63,7 +63,9 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev,redis
 - `ShardingAutoConfiguration`: Main auto-config entry point
 - `ShardingJpaAutoConfiguration`: Dual DataSource configuration with package-based entity routing
 - `TenantShardMappingRepository`: Manages `tenant_shard_mapping` table in global DB
-- `ShardAwareDataSourceDelegate`: Routes connections based on TenantContext
+- `ShardDataSourceRouter`: Holds shard DataSource map; selects master or replica
+- `RoutingDataSource`: `@Primary` DataSource; reads pre-resolved DataSource from `TenantContext`
+- `ShardingFacade`: Public API facade over `ShardConfigService`, `TenantAssignmentService`, `ShardResolutionService`
 - `DatabaseSqlProviderFactory`: Auto-detects DB type (MySQL/PostgreSQL/H2) from JDBC URL
 
 ### sample-sharded-app (Demo Application)
@@ -149,8 +151,8 @@ app.sharding.migration.default-strategy=WAVE  # or SEQUENTIAL, PARALLEL, CANARY
 
 **Pattern 1 — filter/controller layer** (set context for a request scope):
 ```java
-// Inject ShardUtils, then:
-boolean resolved = shardUtils.resolveAndSetTenantContext(tenantId, false); // false = master
+// Inject ShardingFacade, then:
+boolean resolved = shardingFacade.resolveAndSetTenantContext(tenantId, false); // false = master
 try {
     // ... handle request ...
 } finally {
@@ -160,7 +162,7 @@ try {
 
 **Pattern 2 — service layer** (scoped execution within a method):
 ```java
-TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, false)
+TenantInfo tenantInfo = shardingFacade.resolveTenantInfo(tenantId, false)
     .orElseThrow(() -> new ShardLookupException("No active shard for tenant: " + tenantId));
 
 TenantContext.executeInTenantContext(tenantInfo, () -> {
@@ -170,7 +172,7 @@ TenantContext.executeInTenantContext(tenantInfo, () -> {
 
 **Read-only context** (routes to replica):
 ```java
-TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, true).orElseThrow(...);
+TenantInfo tenantInfo = shardingFacade.resolveTenantInfo(tenantId, true).orElseThrow(...);
 TenantContext.executeInTenantContext(tenantInfo, () -> repository.findAll());
 ```
 
@@ -193,7 +195,7 @@ public CompletableFuture<Void> asyncOperation(Long tenantId) {
 }
 ```
 
-**Important**: The calling thread must have `TenantContext` set before dispatching. If it may not be set, resolve inside the async method using `shardUtils.resolveAndSetTenantContext(tenantId, false)`.
+**Important**: The calling thread must have `TenantContext` set before dispatching. If it may not be set, resolve inside the async method using `shardingFacade.resolveAndSetTenantContext(tenantId, false)`.
 
 ### Entity Annotations
 

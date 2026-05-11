@@ -30,7 +30,7 @@ DataSourceTransactionManager
        ↓
 RoutingDataSource (dual config)
        ↓
-ShardAwareDataSourceDelegate
+ShardDataSourceRouter
        ↓
 Correct Shard DataSource
 ```
