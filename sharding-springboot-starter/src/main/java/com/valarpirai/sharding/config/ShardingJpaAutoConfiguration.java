@@ -1,6 +1,5 @@
 package com.valarpirai.sharding.config;
 
-import com.valarpirai.sharding.routing.TenantContextDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -95,21 +94,15 @@ public class ShardingJpaAutoConfiguration {
             this.properties = properties;
         }
 
-        @Bean(name = "shardedDataSource")
-        @Primary
-        public DataSource shardedDataSource(@Qualifier("globalDataSource") DataSource globalDataSource) {
-            return new TenantContextDataSource(globalDataSource);
-        }
-
         @Bean(name = "shardedEntityManagerFactory")
         @Primary
         public LocalContainerEntityManagerFactoryBean shardedEntityManagerFactory(
                 EntityManagerFactoryBuilder builder,
-                @Qualifier("shardedDataSource") DataSource shardedDataSource,
+                @Qualifier("primaryDataSource") DataSource routingDataSource,
                 JpaProperties jpaProperties) {
 
             return builder
-                .dataSource(shardedDataSource)
+                .dataSource(routingDataSource)
                 .packages(properties.getShardedEntityBasePackage())
                 .persistenceUnit("sharded")
                 .properties(jpaProperties.getProperties())
