@@ -21,8 +21,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Iterator for processing tenants in batches.
- * Useful for background jobs that need to operate across all tenants.
+ * Processes tenants in batches across all shards or a specific shard.
+ * Handles TenantContext setup per tenant automatically.
  */
 @Component
 public class TenantIterator {
@@ -33,116 +33,58 @@ public class TenantIterator {
     private final ITenantShardMappingRepo shardLookupService;
     private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
 
-    public TenantIterator(ITenantShardMappingRepo shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+    public TenantIterator(ITenantShardMappingRepo shardLookupService,
+                          ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         this.shardLookupService = shardLookupService;
         this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
-    /**
-     * Process all active tenants in batches with default batch size.
-     *
-     * @param processor function to process each tenant
-     */
+    /** Process all active tenants using the default batch size. */
     public void processAllTenants(Consumer<Long> processor) {
         processAllTenants(processor, DEFAULT_BATCH_SIZE);
     }
 
-    /**
-     * Process all active tenants in batches.
-     *
-     * @param processor function to process each tenant
-     * @param batchSize number of tenants to process in each batch
-     */
+    /** Process all active tenants in batches of {@code batchSize}. */
     public void processAllTenants(Consumer<Long> processor, int batchSize) {
-        if (batchSize <= 0) {
-            throw new IllegalArgumentException("Batch size must be positive");
-        }
-
-        logger.info("Starting tenant processing with batch size: {}", batchSize);
-
-        List<TenantShardMapping> allMappings = shardLookupService.findAllMappings()
-                .stream()
-                .filter(TenantShardMapping::isActive)
-                .collect(Collectors.toList());
-
-        logger.info("Found {} active tenants to process", allMappings.size());
-
-        int totalBatches = (int) Math.ceil((double) allMappings.size() / batchSize);
-        int processedCount = 0;
-
-        for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-            int startIndex = batchIndex * batchSize;
-            int endIndex = Math.min(startIndex + batchSize, allMappings.size());
-
-            List<TenantShardMapping> batch = allMappings.subList(startIndex, endIndex);
-            logger.debug("Processing batch {} of {} (tenants: {})",
-                        batchIndex + 1, totalBatches, batch.size());
-
-            for (TenantShardMapping mapping : batch) {
-                processTenantInContext(mapping, processor);
-                processedCount++;
-            }
-
-            logger.info("Completed batch {} of {} - processed {} tenants so far",
-                       batchIndex + 1, totalBatches, processedCount);
-        }
-
-        logger.info("Completed processing all {} tenants", processedCount);
+        List<TenantShardMapping> active = getActiveMappings();
+        logger.info("Starting tenant processing: {} active tenants, batch size: {}", active.size(), batchSize);
+        int count = processBatches(active, processor, batchSize);
+        logger.info("Completed processing all {} tenants", count);
     }
 
-    /**
-     * Process tenants in parallel with default batch size and parallelism.
-     *
-     * @param processor function to process each tenant
-     */
+    /** Process all active tenants asynchronously using the default batch size. */
     public CompletableFuture<Void> processAllTenantsAsync(Consumer<Long> processor) {
         return processAllTenantsAsync(processor, DEFAULT_BATCH_SIZE, ForkJoinPool.commonPool());
     }
 
-    /**
-     * Process tenants in parallel with specified batch size and executor.
-     *
-     * @param processor function to process each tenant
-     * @param batchSize number of tenants per batch
-     * @param executor executor for parallel processing
-     */
-    public CompletableFuture<Void> processAllTenantsAsync(Consumer<Long> processor, int batchSize, Executor executor) {
+    /** Process all active tenants asynchronously, dispatching one task per batch to {@code executor}. */
+    public CompletableFuture<Void> processAllTenantsAsync(Consumer<Long> processor, int batchSize,
+                                                           Executor executor) {
         return CompletableFuture.runAsync(() -> {
             try {
-                List<TenantShardMapping> allMappings = shardLookupService.findAllMappings()
-                        .stream()
-                        .filter(TenantShardMapping::isActive)
-                        .collect(Collectors.toList());
-
+                List<TenantShardMapping> active = getActiveMappings();
                 logger.info("Starting async tenant processing: {} tenants, batch size: {}",
-                           allMappings.size(), batchSize);
+                        active.size(), batchSize);
 
-                List<CompletableFuture<Void>> batchFutures = new ArrayList<>();
-                int totalBatches = (int) Math.ceil((double) allMappings.size() / batchSize);
+                List<List<TenantShardMapping>> batches = sliceIntoBatches(active, batchSize);
+                int totalBatches = batches.size();
 
-                for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-                    int startIndex = batchIndex * batchSize;
-                    int endIndex = Math.min(startIndex + batchSize, allMappings.size());
-                    List<TenantShardMapping> batch = allMappings.subList(startIndex, endIndex);
-                    final int currentBatch = batchIndex + 1;
-
-                    CompletableFuture<Void> batchFuture = CompletableFuture.runAsync(() -> {
-                        logger.debug("Processing async batch {} of {} (tenants: {})",
-                                    currentBatch, totalBatches, batch.size());
-
+                List<CompletableFuture<Void>> futures = new ArrayList<>();
+                for (int i = 0; i < batches.size(); i++) {
+                    List<TenantShardMapping> batch = batches.get(i);
+                    final int batchNum = i + 1;
+                    futures.add(CompletableFuture.runAsync(() -> {
+                        logger.debug("Processing async batch {} of {} ({} tenants)",
+                                batchNum, totalBatches, batch.size());
                         for (TenantShardMapping mapping : batch) {
                             processTenantInContext(mapping, processor);
                         }
-
-                        logger.debug("Completed async batch {} of {}", currentBatch, totalBatches);
-                    }, executor);
-
-                    batchFutures.add(batchFuture);
+                        logger.debug("Completed async batch {} of {}", batchNum, totalBatches);
+                    }, executor));
                 }
 
-                // Wait for all batches to complete
-                CompletableFuture.allOf(batchFutures.toArray(new CompletableFuture[0])).join();
-                logger.info("Completed async processing of all {} tenants", allMappings.size());
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                logger.info("Completed async processing of all {} tenants", active.size());
 
             } catch (Exception e) {
                 logger.error("Error in async tenant processing", e);
@@ -151,163 +93,121 @@ public class TenantIterator {
         }, executor);
     }
 
-    /**
-     * Process tenants in a specific shard.
-     *
-     * @param shardId the shard identifier
-     * @param processor function to process each tenant
-     */
+    /** Process active tenants in a specific shard using the default batch size. */
     public void processTenantsInShard(String shardId, Consumer<Long> processor) {
         processTenantsInShard(shardId, processor, DEFAULT_BATCH_SIZE);
     }
 
-    /**
-     * Process tenants in a specific shard with batch size.
-     *
-     * @param shardId the shard identifier
-     * @param processor function to process each tenant
-     * @param batchSize number of tenants per batch
-     */
+    /** Process active tenants in a specific shard in batches of {@code batchSize}. */
     public void processTenantsInShard(String shardId, Consumer<Long> processor, int batchSize) {
-        if (shardId == null) {
-            throw new IllegalArgumentException("Shard ID cannot be null");
-        }
+        if (shardId == null) throw new IllegalArgumentException("Shard ID cannot be null");
 
-        logger.info("Processing tenants in shard: {} with batch size: {}", shardId, batchSize);
-
-        List<TenantShardMapping> shardMappings = shardLookupService.findAllMappings()
-                .stream()
-                .filter(mapping -> shardId.equals(mapping.getShardId()))
-                .filter(TenantShardMapping::isActive)
+        List<TenantShardMapping> shardMappings = getActiveMappings().stream()
+                .filter(m -> shardId.equals(m.getShardId()))
                 .collect(Collectors.toList());
 
-        logger.info("Found {} active tenants in shard: {}", shardMappings.size(), shardId);
-
         if (shardMappings.isEmpty()) {
-            logger.info("No tenants found in shard: {}", shardId);
+            logger.info("No active tenants found in shard: {}", shardId);
             return;
         }
 
-        int totalBatches = (int) Math.ceil((double) shardMappings.size() / batchSize);
-        int processedCount = 0;
-
-        for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-            int startIndex = batchIndex * batchSize;
-            int endIndex = Math.min(startIndex + batchSize, shardMappings.size());
-
-            List<TenantShardMapping> batch = shardMappings.subList(startIndex, endIndex);
-            logger.debug("Processing shard {} batch {} of {} (tenants: {})",
-                        shardId, batchIndex + 1, totalBatches, batch.size());
-
-            for (TenantShardMapping mapping : batch) {
-                processTenantInContext(mapping, processor);
-                processedCount++;
-            }
-
-            logger.debug("Completed shard {} batch {} of {} - processed {} tenants so far",
-                        shardId, batchIndex + 1, totalBatches, processedCount);
-        }
-
-        logger.info("Completed processing {} tenants in shard: {}", processedCount, shardId);
+        logger.info("Processing {} active tenants in shard: {}", shardMappings.size(), shardId);
+        int count = processBatches(shardMappings, processor, batchSize);
+        logger.info("Completed processing {} tenants in shard: {}", count, shardId);
     }
 
-    /**
-     * Create a batch iterator for custom processing logic.
-     *
-     * @param batchSize the batch size
-     * @return iterator over tenant batches
-     */
+    /** Returns a lazy batch iterator over all active tenant IDs. */
     public Iterator<List<Long>> createBatchIterator(int batchSize) {
-        List<Long> allTenants = shardLookupService.findAllMappings()
-                .stream()
-                .filter(TenantShardMapping::isActive)
+        List<Long> allTenants = getActiveMappings().stream()
                 .map(TenantShardMapping::getTenantId)
                 .collect(Collectors.toList());
-
         return new BatchIterator<>(allTenants, batchSize);
     }
 
-    /**
-     * Process tenants with a mapping function that returns results.
-     *
-     * @param mapper function that processes each tenant and returns a result
-     * @param <T> the result type
-     * @return list of results from processing all tenants
-     */
+    /** Apply {@code mapper} to each active tenant and collect non-null results. */
     public <T> List<T> mapAllTenants(Function<Long, T> mapper) {
         return mapAllTenants(mapper, DEFAULT_BATCH_SIZE);
     }
 
-    /**
-     * Process tenants with a mapping function that returns results.
-     *
-     * @param mapper function that processes each tenant and returns a result
-     * @param batchSize number of tenants per batch
-     * @param <T> the result type
-     * @return list of results from processing all tenants
-     */
+    /** Apply {@code mapper} to each active tenant in batches and collect non-null results. */
     public <T> List<T> mapAllTenants(Function<Long, T> mapper, int batchSize) {
         List<T> results = new ArrayList<>();
-
+        // TenantContext is already set by processAllTenants → processTenantInContext
         processAllTenants(tenantId -> {
-            T result = TenantContext.executeInTenantContext(tenantId, () -> mapper.apply(tenantId));
-            if (result != null) {
-                results.add(result);
-            }
+            T result = mapper.apply(tenantId);
+            if (result != null) results.add(result);
         }, batchSize);
-
         return results;
     }
 
-    /**
-     * Get tenant processing statistics.
-     *
-     * @return statistics about tenants available for processing
-     */
+    /** Returns counts of active, inactive, and total tenants. */
     public TenantProcessingStats getProcessingStats() {
-        List<TenantShardMapping> allMappings = shardLookupService.findAllMappings();
+        List<TenantShardMapping> all = shardLookupService.findAllMappings();
+        long active = all.stream().filter(TenantShardMapping::isActive).count();
+        return new TenantProcessingStats(active, all.size() - active, all.size());
+    }
 
-        long activeTenants = allMappings.stream()
+    // ── private helpers ───────────────────────────────────────────────────────
+
+    private List<TenantShardMapping> getActiveMappings() {
+        return shardLookupService.findAllMappings().stream()
                 .filter(TenantShardMapping::isActive)
-                .count();
-
-        long inactiveTenants = allMappings.size() - activeTenants;
-
-        return new TenantProcessingStats(activeTenants, inactiveTenants, allMappings.size());
+                .collect(Collectors.toList());
     }
 
     /**
-     * Process a tenant within its proper tenant context.
+     * Slices {@code items} into sequential sub-lists of at most {@code batchSize} each.
+     * Extracted to eliminate the identical slicing arithmetic in sync and async paths.
      */
+    private <T> List<List<T>> sliceIntoBatches(List<T> items, int batchSize) {
+        if (batchSize <= 0) throw new IllegalArgumentException("Batch size must be positive");
+        List<List<T>> batches = new ArrayList<>();
+        for (int i = 0; i < items.size(); i += batchSize) {
+            batches.add(items.subList(i, Math.min(i + batchSize, items.size())));
+        }
+        return batches;
+    }
+
+    /**
+     * Iterates {@code mappings} in sequential batches, calling {@code processor} for each
+     * tenant within its resolved TenantContext.
+     *
+     * @return total number of tenants processed
+     */
+    private int processBatches(List<TenantShardMapping> mappings, Consumer<Long> processor, int batchSize) {
+        List<List<TenantShardMapping>> batches = sliceIntoBatches(mappings, batchSize);
+        int processedCount = 0;
+        for (int i = 0; i < batches.size(); i++) {
+            List<TenantShardMapping> batch = batches.get(i);
+            logger.debug("Processing batch {} of {} ({} tenants)", i + 1, batches.size(), batch.size());
+            for (TenantShardMapping mapping : batch) {
+                processTenantInContext(mapping, processor);
+                processedCount++;
+            }
+            logger.info("Completed batch {} of {} — {} tenants processed so far",
+                    i + 1, batches.size(), processedCount);
+        }
+        return processedCount;
+    }
+
     private void processTenantInContext(TenantShardMapping mapping, Consumer<Long> processor) {
         try {
-            // Create TenantInfo with pre-resolved shard DataSource
             String shardId = mapping.getShardId();
-            javax.sql.DataSource shardDataSource = shardAwareDataSourceDelegate.getShardDataSource(shardId, false);
-
-            TenantInfo tenantInfo = new TenantInfo(mapping.getTenantId(), shardId, false, shardDataSource);
-            logger.trace("Set tenant context for batch processing - tenant: {}, shard: {}",
-                       mapping.getTenantId(), shardId);
-
-            // Execute with complete tenant context
-            TenantContext.executeInTenantContext(tenantInfo, () -> {
-                processor.accept(mapping.getTenantId());
-            });
+            javax.sql.DataSource ds = shardAwareDataSourceDelegate.getShardDataSource(shardId, false);
+            TenantInfo tenantInfo = new TenantInfo(mapping.getTenantId(), shardId, false, ds);
+            TenantContext.executeInTenantContext(tenantInfo, () -> processor.accept(mapping.getTenantId()));
         } catch (Exception e) {
             logger.error("Error processing tenant {}: {}", mapping.getTenantId(), e.getMessage(), e);
             throw new TenantIteratorException("Failed to process tenant: " + mapping.getTenantId(), e);
         }
     }
 
-    /**
-     * Generic batch iterator implementation.
-     */
     private static class BatchIterator<T> implements Iterator<List<T>> {
         private final List<T> items;
         private final int batchSize;
         private int currentIndex = 0;
 
-        public BatchIterator(List<T> items, int batchSize) {
+        BatchIterator(List<T> items, int batchSize) {
             this.items = items;
             this.batchSize = batchSize;
         }
@@ -319,16 +219,13 @@ public class TenantIterator {
 
         @Override
         public List<T> next() {
-            int endIndex = Math.min(currentIndex + batchSize, items.size());
-            List<T> batch = items.subList(currentIndex, endIndex);
-            currentIndex = endIndex;
-            return new ArrayList<>(batch);
+            int end = Math.min(currentIndex + batchSize, items.size());
+            List<T> batch = new ArrayList<>(items.subList(currentIndex, end));
+            currentIndex = end;
+            return batch;
         }
     }
 
-    /**
-     * Statistics about tenant processing.
-     */
     @lombok.Data
     @lombok.AllArgsConstructor
     public static class TenantProcessingStats {
