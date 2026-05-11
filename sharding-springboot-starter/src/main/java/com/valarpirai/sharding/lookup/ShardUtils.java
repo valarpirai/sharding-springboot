@@ -137,7 +137,7 @@ public class ShardUtils {
      */
     public Set<String> getActiveShardIds() {
         return shardingConfig.getShards().entrySet().stream()
-                .filter(entry -> "ACTIVE".equalsIgnoreCase(entry.getValue().getStatus()))
+                .filter(entry -> entry.getValue().isActive())
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
     }
@@ -238,7 +238,7 @@ public class ShardUtils {
 
         ShardConfig shardConfig = getShardConfig(newShardId).orElseThrow();
         logger.info("Moving tenant {} to shard: {}", tenantId, newShardId);
-        return shardLookupService.updateMapping(tenantId, newShardId, shardConfig.getRegion(), "ACTIVE");
+        return shardLookupService.updateMapping(tenantId, newShardId, shardConfig.getRegion(), ShardConfig.STATUS_ACTIVE);
     }
 
     /**

@@ -10,11 +10,17 @@ import java.util.Map;
 @Data
 public class ShardConfig {
 
+    public static final String STATUS_ACTIVE = "ACTIVE";
+
     private String shardId;
     private DatabaseConfig master;
     private Map<String, DatabaseConfig> replicas = new HashMap<>();
     private HikariConfigProperties hikari = new HikariConfigProperties();
     private Boolean latest = false;
     private String region;
-    private String status = "ACTIVE";
+    private String status = STATUS_ACTIVE;
+
+    public boolean isActive() {
+        return STATUS_ACTIVE.equalsIgnoreCase(status);
+    }
 }

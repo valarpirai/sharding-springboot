@@ -1,5 +1,6 @@
 package com.valarpirai.sharding.lookup;
 
+import com.valarpirai.sharding.config.ShardConfig;
 import com.valarpirai.sharding.config.ShardingConfigProperties;
 import com.valarpirai.sharding.exception.ShardLookupException;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -130,7 +131,7 @@ public class TenantShardMappingRepository implements ITenantShardMappingRepo {
     @Override
     @WithSpan("sharding.shard_lookup.create_mapping")
     public TenantShardMapping createMapping(Long tenantId, String shardId, String region) {
-        return createMapping(tenantId, shardId, region, "ACTIVE");
+        return createMapping(tenantId, shardId, region, ShardConfig.STATUS_ACTIVE);
     }
 
     /**
