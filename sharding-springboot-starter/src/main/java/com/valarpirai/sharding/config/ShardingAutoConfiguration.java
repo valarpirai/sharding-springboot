@@ -7,6 +7,7 @@ import com.valarpirai.sharding.lookup.H2SqlProvider;
 import com.valarpirai.sharding.lookup.MySQLSqlProvider;
 import com.valarpirai.sharding.lookup.PostgreSQLSqlProvider;
 import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
+import com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo;
 import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.ShardConfigService;
 import com.valarpirai.sharding.lookup.ShardResolutionService;
@@ -155,7 +156,7 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public TenantIterator tenantIterator(ITenantShardMappingRepo shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+    public TenantIterator tenantIterator(ITenantShardMappingReadRepo shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
         return new TenantIterator(shardLookupService, shardAwareDataSourceDelegate);
     }
 
@@ -208,7 +209,7 @@ public class ShardingAutoConfiguration {
     @ConditionalOnMissingBean
     public ShardAwareDataSourceDelegate shardAwareDataSourceDelegate(Map<String, ShardDataSources> shardDataSources,
                                                          DataSource globalDataSource,
-                                                         ITenantShardMappingRepo shardLookupService) {
+                                                         ITenantShardMappingReadRepo shardLookupService) {
         return new ShardAwareDataSourceDelegate(shardLookupService, shardDataSources, globalDataSource);
     }
 

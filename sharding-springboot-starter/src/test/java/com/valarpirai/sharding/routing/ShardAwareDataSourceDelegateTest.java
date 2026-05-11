@@ -25,7 +25,7 @@ import static org.mockito.Mockito.*;
 class ShardAwareDataSourceDelegateTest {
 
     @Mock
-    private com.valarpirai.sharding.lookup.ITenantShardMappingRepo shardLookupService;
+    private com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo shardLookupService;
 
     @Mock
     private DataSource globalDataSource;

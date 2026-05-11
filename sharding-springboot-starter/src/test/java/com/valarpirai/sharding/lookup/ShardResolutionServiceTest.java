@@ -15,14 +15,14 @@ import static org.mockito.Mockito.*;
 
 class ShardResolutionServiceTest {
 
-    private ITenantShardMappingRepo mockRepo;
+    private ITenantShardMappingReadRepo mockRepo;
     private ShardAwareDataSourceDelegate mockDelegate;
     private DataSource mockDataSource;
     private ShardResolutionService service;
 
     @BeforeEach
     void setUp() {
-        mockRepo = mock(ITenantShardMappingRepo.class);
+        mockRepo = mock(ITenantShardMappingReadRepo.class);
         mockDelegate = mock(ShardAwareDataSourceDelegate.class);
         mockDataSource = mock(DataSource.class);
         service = new ShardResolutionService(mockRepo, mockDelegate);

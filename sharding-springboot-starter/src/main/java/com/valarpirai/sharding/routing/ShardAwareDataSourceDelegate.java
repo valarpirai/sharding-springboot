@@ -2,7 +2,7 @@ package com.valarpirai.sharding.routing;
 
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.exception.RoutingException;
-import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
+import com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +22,11 @@ public class ShardAwareDataSourceDelegate {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardAwareDataSourceDelegate.class);
 
-    private final ITenantShardMappingRepo shardLookupService;
+    private final ITenantShardMappingReadRepo shardLookupService;
     private final Map<String, ShardDataSources> shardDataSources;
     private final DataSource globalDataSource;
 
-    public ShardAwareDataSourceDelegate(ITenantShardMappingRepo shardLookupService,
+    public ShardAwareDataSourceDelegate(ITenantShardMappingReadRepo shardLookupService,
                                         Map<String, ShardDataSources> shardDataSources,
                                         DataSource globalDataSource) {
         this.shardLookupService = shardLookupService;

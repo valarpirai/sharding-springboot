@@ -19,10 +19,10 @@ public class ShardResolutionService {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardResolutionService.class);
 
-    private final ITenantShardMappingRepo mappingRepo;
+    private final ITenantShardMappingReadRepo mappingRepo;
     private final ShardAwareDataSourceDelegate shardDelegate;
 
-    public ShardResolutionService(ITenantShardMappingRepo mappingRepo,
+    public ShardResolutionService(ITenantShardMappingReadRepo mappingRepo,
                                   ShardAwareDataSourceDelegate shardDelegate) {
         this.mappingRepo = mappingRepo;
         this.shardDelegate = shardDelegate;
