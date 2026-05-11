@@ -5,7 +5,7 @@ import com.valarpirai.sharding.context.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
+import com.valarpirai.sharding.routing.ShardDataSourceRouter;
 
 import javax.sql.DataSource;
 import java.util.Optional;
@@ -20,10 +20,10 @@ public class ShardResolutionService {
     private static final Logger logger = LoggerFactory.getLogger(ShardResolutionService.class);
 
     private final ITenantShardMappingReadRepo mappingRepo;
-    private final ShardAwareDataSourceDelegate shardDelegate;
+    private final ShardDataSourceRouter shardDelegate;
 
     public ShardResolutionService(ITenantShardMappingReadRepo mappingRepo,
-                                  ShardAwareDataSourceDelegate shardDelegate) {
+                                  ShardDataSourceRouter shardDelegate) {
         this.mappingRepo = mappingRepo;
         this.shardDelegate = shardDelegate;
     }

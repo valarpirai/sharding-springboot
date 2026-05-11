@@ -5,7 +5,7 @@ import com.valarpirai.example.repository.global.AccountRepository;
 import com.valarpirai.example.entity.sharded.*;
 import com.valarpirai.example.repository.sharded.*;
 import com.valarpirai.example.security.PermissionMasks;
-import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.lookup.ShardingFacade;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import org.slf4j.Logger;
@@ -33,7 +33,7 @@ public class AccountDemoSetupService {
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ShardUtils shardUtils;
+    private final ShardingFacade shardUtils;
 
     public AccountDemoSetupService(AccountRepository accountRepository,
                                  RoleRepository roleRepository,
@@ -41,7 +41,7 @@ public class AccountDemoSetupService {
                                  UserRepository userRepository,
                                  TicketRepository ticketRepository,
                                  PasswordEncoder passwordEncoder,
-                                 ShardUtils shardUtils) {
+                                 ShardingFacade shardUtils) {
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
         this.statusRepository = statusRepository;
@@ -262,7 +262,7 @@ public class AccountDemoSetupService {
     private <T> T executeWithShardContext(Long accountId, java.util.function.Supplier<T> function) {
         TenantInfo previousContext = TenantContext.getTenantInfo();
         try {
-            // Resolve shard information for background job using ShardUtils
+            // Resolve shard information for background job using ShardingFacade
             Optional<TenantInfo> tenantInfoOpt = shardUtils.resolveTenantInfo(accountId, false);
             if (!tenantInfoOpt.isPresent()) {
                 throw new IllegalStateException("No active shard mapping found for account: " + accountId);

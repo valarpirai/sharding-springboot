@@ -18,15 +18,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * Handles shard lookup, replica selection, and connection pooling.
  */
 @Component
-public class ShardAwareDataSourceDelegate {
+public class ShardDataSourceRouter {
 
-    private static final Logger logger = LoggerFactory.getLogger(ShardAwareDataSourceDelegate.class);
+    private static final Logger logger = LoggerFactory.getLogger(ShardDataSourceRouter.class);
 
     private final ITenantShardMappingReadRepo shardLookupService;
     private final Map<String, ShardDataSources> shardDataSources;
     private final DataSource globalDataSource;
 
-    public ShardAwareDataSourceDelegate(ITenantShardMappingReadRepo shardLookupService,
+    public ShardDataSourceRouter(ITenantShardMappingReadRepo shardLookupService,
                                         Map<String, ShardDataSources> shardDataSources,
                                         DataSource globalDataSource) {
         this.shardLookupService = shardLookupService;

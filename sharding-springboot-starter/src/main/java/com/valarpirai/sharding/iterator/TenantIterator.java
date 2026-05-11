@@ -5,7 +5,7 @@ import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.exception.TenantIteratorException;
 import com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
+import com.valarpirai.sharding.routing.ShardDataSourceRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,10 +31,10 @@ public class TenantIterator {
     private static final int DEFAULT_BATCH_SIZE = 10;
 
     private final ITenantShardMappingReadRepo shardLookupService;
-    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
+    private final ShardDataSourceRouter shardAwareDataSourceDelegate;
 
     public TenantIterator(ITenantShardMappingReadRepo shardLookupService,
-                          ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+                          ShardDataSourceRouter shardAwareDataSourceDelegate) {
         this.shardLookupService = shardLookupService;
         this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }

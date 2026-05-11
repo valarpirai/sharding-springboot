@@ -20,12 +20,12 @@ public class RoutingDataSource extends AbstractDataSource {
 
     private static final Logger logger = LoggerFactory.getLogger(RoutingDataSource.class);
 
-    private final ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
+    private final ShardDataSourceRouter shardAwareDataSourceDelegate;
 
 
     // OpenTelemetry tracing via @WithSpan annotations only
 
-    public RoutingDataSource(ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+    public RoutingDataSource(ShardDataSourceRouter shardAwareDataSourceDelegate) {
         this.shardAwareDataSourceDelegate = shardAwareDataSourceDelegate;
     }
 
@@ -165,7 +165,7 @@ public class RoutingDataSource extends AbstractDataSource {
      *
      * @return routing statistics
      */
-    public ShardAwareDataSourceDelegate.RoutingStatistics getRoutingStatistics() {
+    public ShardDataSourceRouter.RoutingStatistics getRoutingStatistics() {
         return shardAwareDataSourceDelegate.getRoutingStatistics();
     }
 
@@ -184,7 +184,7 @@ public class RoutingDataSource extends AbstractDataSource {
      *
      * @return the connection router
      */
-    public ShardAwareDataSourceDelegate getConnectionRouter() {
+    public ShardDataSourceRouter getConnectionRouter() {
         return shardAwareDataSourceDelegate;
     }
 

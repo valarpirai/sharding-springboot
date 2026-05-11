@@ -11,9 +11,9 @@ import java.util.Properties;
  * Utility class for configuring HikariCP with optimal defaults.
  * Handles property conversion and applies best practices for production use.
  */
-public class HikariConfigUtil {
+public class HikariConfigFactory {
 
-    private static final Logger logger = LoggerFactory.getLogger(HikariConfigUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(HikariConfigFactory.class);
 
     /**
      * Create a HikariConfig from configuration properties with optimal defaults.

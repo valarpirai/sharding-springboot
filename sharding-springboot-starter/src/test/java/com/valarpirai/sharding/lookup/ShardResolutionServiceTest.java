@@ -2,7 +2,7 @@ package com.valarpirai.sharding.lookup;
 
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
+import com.valarpirai.sharding.routing.ShardDataSourceRouter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,14 +16,14 @@ import static org.mockito.Mockito.*;
 class ShardResolutionServiceTest {
 
     private ITenantShardMappingReadRepo mockRepo;
-    private ShardAwareDataSourceDelegate mockDelegate;
+    private ShardDataSourceRouter mockDelegate;
     private DataSource mockDataSource;
     private ShardResolutionService service;
 
     @BeforeEach
     void setUp() {
         mockRepo = mock(ITenantShardMappingReadRepo.class);
-        mockDelegate = mock(ShardAwareDataSourceDelegate.class);
+        mockDelegate = mock(ShardDataSourceRouter.class);
         mockDataSource = mock(DataSource.class);
         service = new ShardResolutionService(mockRepo, mockDelegate);
     }

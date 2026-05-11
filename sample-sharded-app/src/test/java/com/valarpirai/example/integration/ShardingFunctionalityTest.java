@@ -7,7 +7,8 @@ import com.valarpirai.example.repository.global.AccountRepository;
 import com.valarpirai.example.repository.sharded.RoleRepository;
 import com.valarpirai.example.repository.sharded.UserRepository;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.lookup.ShardingFacade;
+import com.valarpirai.sharding.lookup.ShardStatistics;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +41,7 @@ class ShardingFunctionalityTest extends BaseIntegrationTest {
     private RoleRepository roleRepository;
 
     @Autowired
-    private ShardUtils shardUtils;
+    private ShardingFacade shardUtils;
 
     @BeforeEach
     void setUp() {
@@ -169,7 +170,7 @@ class ShardingFunctionalityTest extends BaseIntegrationTest {
         }
 
         // Get shard statistics
-        ShardUtils.ShardStatistics stats = shardUtils.getShardStatistics();
+        ShardStatistics stats = shardUtils.getShardStatistics();
 
         // Verify statistics
         assertThat(stats).isNotNull();

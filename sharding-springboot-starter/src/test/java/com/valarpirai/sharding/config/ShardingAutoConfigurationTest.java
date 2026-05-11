@@ -2,8 +2,8 @@ package com.valarpirai.sharding.config;
 
 import com.valarpirai.sharding.iterator.TenantIterator;
 import com.valarpirai.sharding.lookup.DatabaseSqlProviderFactory;
-import com.valarpirai.sharding.lookup.ShardUtils;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
+import com.valarpirai.sharding.lookup.ShardingFacade;
+import com.valarpirai.sharding.routing.ShardDataSourceRouter;
 import com.valarpirai.sharding.validation.EntityValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -42,10 +42,10 @@ class ShardingAutoConfigurationTest {
                     assertThat(context).hasSingleBean(JdbcTemplate.class);
                     assertThat(context).hasSingleBean(DatabaseSqlProviderFactory.class);
                     assertThat(context).hasSingleBean(com.valarpirai.sharding.lookup.ITenantShardMappingRepo.class);
-                    assertThat(context).hasSingleBean(ShardUtils.class);
+                    assertThat(context).hasSingleBean(ShardingFacade.class);
                     assertThat(context).hasSingleBean(TenantIterator.class);
                     assertThat(context).hasSingleBean(EntityValidator.class);
-                    assertThat(context).hasSingleBean(ShardAwareDataSourceDelegate.class);
+                    assertThat(context).hasSingleBean(ShardDataSourceRouter.class);
                     assertThat(context).hasSingleBean(CacheManager.class);
                 });
     }

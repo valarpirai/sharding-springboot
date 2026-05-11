@@ -5,7 +5,7 @@ import com.valarpirai.sharding.config.ShardingAutoConfiguration;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.ShardStatistics;
-import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.lookup.ShardingFacade;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +54,7 @@ class ShardingIntegrationTest {
     private ITenantShardMappingRepo shardLookupService;
 
     @Autowired
-    private ShardUtils shardUtils;
+    private ShardingFacade shardUtils;
 
     @Autowired
     private DataSource dataSource;

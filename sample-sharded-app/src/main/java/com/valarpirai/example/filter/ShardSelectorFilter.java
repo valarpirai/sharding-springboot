@@ -1,7 +1,7 @@
 package com.valarpirai.example.filter;
 
 import com.valarpirai.example.service.AccountValidationService;
-import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.lookup.ShardingFacade;
 import com.valarpirai.sharding.context.TenantContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,10 +29,10 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(ShardSelectorFilter.class);
 
-    private final ShardUtils shardUtils;
+    private final ShardingFacade shardUtils;
     private final AccountValidationService accountValidationService;
 
-    public ShardSelectorFilter(ShardUtils shardUtils,
+    public ShardSelectorFilter(ShardingFacade shardUtils,
                                AccountValidationService accountValidationService) {
         this.shardUtils = shardUtils;
         this.accountValidationService = accountValidationService;
@@ -71,7 +71,7 @@ public class ShardSelectorFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // Resolve shard information for the tenant using ShardUtils
+            // Resolve shard information for the tenant using ShardingFacade
             boolean resolved = shardUtils.resolveAndSetTenantContext(accountId, false);
             if (!resolved) {
                 logger.warn("Failed to resolve shard for account: {}", accountId);

@@ -4,7 +4,7 @@ import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.context.TenantInfo;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
 import com.valarpirai.sharding.lookup.TenantShardMappingRepository;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
+import com.valarpirai.sharding.routing.ShardDataSourceRouter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +62,7 @@ public abstract class BaseIntegrationTest {
     protected JdbcTemplate jdbcTemplate;
 
     @Autowired(required = false)
-    protected ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
+    protected ShardDataSourceRouter shardAwareDataSourceDelegate;
 
     /**
      * Configure Spring properties dynamically based on TestContainers.

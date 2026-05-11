@@ -22,7 +22,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for ConnectionRouter.
  */
 @ExtendWith(MockitoExtension.class)
-class ShardAwareDataSourceDelegateTest {
+class ShardDataSourceRouterTest {
 
     @Mock
     private com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo shardLookupService;
@@ -40,7 +40,7 @@ class ShardAwareDataSourceDelegateTest {
     private DataSource shard2MasterDataSource;
 
     private Map<String, ShardDataSources> shardDataSources;
-    private ShardAwareDataSourceDelegate shardAwareDataSourceDelegate;
+    private ShardDataSourceRouter shardAwareDataSourceDelegate;
 
     @BeforeEach
     void setUp() {
@@ -57,7 +57,7 @@ class ShardAwareDataSourceDelegateTest {
         ShardDataSources shard2DataSources = new ShardDataSources("shard2", shard2MasterDataSource);
         shardDataSources.put("shard2", shard2DataSources);
 
-        shardAwareDataSourceDelegate = new ShardAwareDataSourceDelegate(shardLookupService, shardDataSources, globalDataSource);
+        shardAwareDataSourceDelegate = new ShardDataSourceRouter(shardLookupService, shardDataSources, globalDataSource);
     }
 
     @AfterEach
@@ -159,7 +159,7 @@ class ShardAwareDataSourceDelegateTest {
     @Test
     void testGetRoutingStatistics() {
         // Test routing statistics functionality
-        ShardAwareDataSourceDelegate.RoutingStatistics stats = shardAwareDataSourceDelegate.getRoutingStatistics();
+        ShardDataSourceRouter.RoutingStatistics stats = shardAwareDataSourceDelegate.getRoutingStatistics();
 
         assertNotNull(stats);
         assertEquals(2, stats.totalShards());
@@ -190,7 +190,7 @@ class ShardAwareDataSourceDelegateTest {
         shardAwareDataSourceDelegate.routeDataSource(false);
 
         // Then - statistics show configuration, not request counts
-        ShardAwareDataSourceDelegate.RoutingStatistics stats = shardAwareDataSourceDelegate.getRoutingStatistics();
+        ShardDataSourceRouter.RoutingStatistics stats = shardAwareDataSourceDelegate.getRoutingStatistics();
         assertEquals(2, stats.totalShards());
         assertEquals(1, stats.shardsWithReplicas());
         assertEquals(1, stats.getShardsWithoutReplicas());

@@ -11,9 +11,9 @@ import com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo;
 import com.valarpirai.sharding.lookup.ITenantShardMappingRepo;
 import com.valarpirai.sharding.lookup.ShardConfigService;
 import com.valarpirai.sharding.lookup.ShardResolutionService;
-import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.lookup.ShardingFacade;
 import com.valarpirai.sharding.lookup.TenantAssignmentService;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
+import com.valarpirai.sharding.routing.ShardDataSourceRouter;
 import com.valarpirai.sharding.routing.RoutingDataSource;
 import com.valarpirai.sharding.routing.ShardDataSources;
 import com.valarpirai.sharding.validation.EntityValidator;
@@ -77,15 +77,15 @@ public class ShardingAutoConfiguration {
 
         ShardingConfigProperties.GlobalDatabaseConfig globalConfig = shardingConfig.getGlobalDb();
 
-        HikariConfig config = HikariConfigUtil.createHikariConfig(
+        HikariConfig config = HikariConfigFactory.createHikariConfig(
                 globalConfig.getHikari(),
                 createDatabaseConfig(globalConfig),
                 "global-db-pool"
         );
 
         // Apply database-specific optimizations
-        HikariConfigUtil.applyDatabaseSpecificOptimizations(config);
-        HikariConfigUtil.validateConfiguration(config);
+        HikariConfigFactory.applyDatabaseSpecificOptimizations(config);
+        HikariConfigFactory.validateConfiguration(config);
 
         return new HikariDataSource(config);
     }
@@ -136,7 +136,7 @@ public class ShardingAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ShardResolutionService shardResolutionService(ITenantShardMappingRepo mappingRepo,
-                                                         ShardAwareDataSourceDelegate shardDelegate) {
+                                                         ShardDataSourceRouter shardDelegate) {
         return new ShardResolutionService(mappingRepo, shardDelegate);
     }
 
@@ -145,10 +145,10 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ShardUtils shardUtils(ShardConfigService shardConfigService,
+    public ShardingFacade shardUtils(ShardConfigService shardConfigService,
                                  TenantAssignmentService tenantAssignmentService,
                                  ShardResolutionService shardResolutionService) {
-        return new ShardUtils(shardConfigService, tenantAssignmentService, shardResolutionService);
+        return new ShardingFacade(shardConfigService, tenantAssignmentService, shardResolutionService);
     }
 
     /**
@@ -156,7 +156,7 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public TenantIterator tenantIterator(ITenantShardMappingReadRepo shardLookupService, ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+    public TenantIterator tenantIterator(ITenantShardMappingReadRepo shardLookupService, ShardDataSourceRouter shardAwareDataSourceDelegate) {
         return new TenantIterator(shardLookupService, shardAwareDataSourceDelegate);
     }
 
@@ -207,10 +207,10 @@ public class ShardingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ShardAwareDataSourceDelegate shardAwareDataSourceDelegate(Map<String, ShardDataSources> shardDataSources,
+    public ShardDataSourceRouter shardAwareDataSourceDelegate(Map<String, ShardDataSources> shardDataSources,
                                                          DataSource globalDataSource,
                                                          ITenantShardMappingReadRepo shardLookupService) {
-        return new ShardAwareDataSourceDelegate(shardLookupService, shardDataSources, globalDataSource);
+        return new ShardDataSourceRouter(shardLookupService, shardDataSources, globalDataSource);
     }
 
     /**
@@ -219,7 +219,7 @@ public class ShardingAutoConfiguration {
     @Bean
     @Primary
     @ConditionalOnMissingBean
-    public DataSource primaryDataSource(ShardAwareDataSourceDelegate shardAwareDataSourceDelegate) {
+    public DataSource primaryDataSource(ShardDataSourceRouter shardAwareDataSourceDelegate) {
         logger.info("Creating primary routing DataSource");
 
         return new RoutingDataSource(shardAwareDataSourceDelegate);
@@ -266,11 +266,11 @@ public class ShardingAutoConfiguration {
                                       HikariConfigProperties hikariConfig) {
         logger.debug("Creating DataSource: {}", poolName);
 
-        HikariConfig config = HikariConfigUtil.createHikariConfig(hikariConfig, dbConfig, poolName);
+        HikariConfig config = HikariConfigFactory.createHikariConfig(hikariConfig, dbConfig, poolName);
 
         // Apply database-specific optimizations
-        HikariConfigUtil.applyDatabaseSpecificOptimizations(config);
-        HikariConfigUtil.validateConfiguration(config);
+        HikariConfigFactory.applyDatabaseSpecificOptimizations(config);
+        HikariConfigFactory.validateConfiguration(config);
 
         return new HikariDataSource(config);
     }

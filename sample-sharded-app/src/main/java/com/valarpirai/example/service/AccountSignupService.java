@@ -10,7 +10,7 @@ import com.valarpirai.example.repository.sharded.RoleRepository;
 import com.valarpirai.example.repository.sharded.UserRepository;
 import com.valarpirai.example.security.PermissionMasks;
 import com.valarpirai.sharding.context.TenantContext;
-import com.valarpirai.sharding.lookup.ShardUtils;
+import com.valarpirai.sharding.lookup.ShardingFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,14 +27,14 @@ public class AccountSignupService {
     private final AccountRepository accountRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
-    private final ShardUtils shardUtils;
+    private final ShardingFacade shardUtils;
     private final PasswordEncoder passwordEncoder;
     private final AccountDemoSetupService demoSetupService;
 
     public AccountSignupService(AccountRepository accountRepository,
                               RoleRepository roleRepository,
                               UserRepository userRepository,
-                              ShardUtils shardUtils,
+                              ShardingFacade shardUtils,
                               PasswordEncoder passwordEncoder,
                               AccountDemoSetupService demoSetupService) {
         this.accountRepository = accountRepository;

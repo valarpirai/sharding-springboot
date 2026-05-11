@@ -3,7 +3,7 @@ package com.valarpirai.sharding.iterator;
 import com.valarpirai.sharding.context.TenantContext;
 import com.valarpirai.sharding.lookup.ITenantShardMappingReadRepo;
 import com.valarpirai.sharding.lookup.TenantShardMapping;
-import com.valarpirai.sharding.routing.ShardAwareDataSourceDelegate;
+import com.valarpirai.sharding.routing.ShardDataSourceRouter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,14 +21,14 @@ import static org.mockito.Mockito.*;
 class TenantIteratorTest {
 
     private ITenantShardMappingReadRepo mockRepo;
-    private ShardAwareDataSourceDelegate mockDelegate;
+    private ShardDataSourceRouter mockDelegate;
     private DataSource mockDataSource;
     private TenantIterator iterator;
 
     @BeforeEach
     void setUp() {
         mockRepo = mock(ITenantShardMappingReadRepo.class);
-        mockDelegate = mock(ShardAwareDataSourceDelegate.class);
+        mockDelegate = mock(ShardDataSourceRouter.class);
         mockDataSource = mock(DataSource.class);
         iterator = new TenantIterator(mockRepo, mockDelegate);
         when(mockDelegate.getShardDataSource(anyString(), anyBoolean())).thenReturn(mockDataSource);

@@ -15,13 +15,13 @@ import java.util.Set;
  * services each carry a single responsibility.
  */
 @Component
-public class ShardUtils {
+public class ShardingFacade {
 
     private final ShardConfigService shardConfigService;
     private final TenantAssignmentService tenantAssignmentService;
     private final ShardResolutionService shardResolutionService;
 
-    public ShardUtils(ShardConfigService shardConfigService,
+    public ShardingFacade(ShardConfigService shardConfigService,
                       TenantAssignmentService tenantAssignmentService,
                       ShardResolutionService shardResolutionService) {
         this.shardConfigService = shardConfigService;

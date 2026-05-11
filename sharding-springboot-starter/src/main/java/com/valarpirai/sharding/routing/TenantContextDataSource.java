@@ -14,12 +14,12 @@ import java.sql.SQLException;
  * Routing DataSource that routes to the appropriate shard based on TenantContext.
  * This DataSource is used specifically for sharded entities.
  */
-public class TenantAwareDataSourceDelegate extends AbstractDataSource {
+public class TenantContextDataSource extends AbstractDataSource {
 
-    private static final Logger logger = LoggerFactory.getLogger(TenantAwareDataSourceDelegate.class);
+    private static final Logger logger = LoggerFactory.getLogger(TenantContextDataSource.class);
     private final DataSource globalDataSource;
 
-    public TenantAwareDataSourceDelegate(DataSource globalDataSource) {
+    public TenantContextDataSource(DataSource globalDataSource) {
         this.globalDataSource = globalDataSource;
     }
 
