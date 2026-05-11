@@ -350,8 +350,8 @@ Want to implement one of these features?
 
 - [IMPROVEMENTS.md](../IMPROVEMENTS.md) - Detailed improvement descriptions
 - [CLAUDE.md](../CLAUDE.md) - Development patterns and commands
-- [Getting Started](guides/getting-started.md) - Library usage guide
-- [Technical Specification](reference/specification.md) - Architecture details
+- [Getting Started](getting-started.md) - Library usage guide
+- [Technical Specification](specification.md) - Architecture details
 
 ---
 

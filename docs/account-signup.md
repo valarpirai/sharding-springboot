@@ -2,38 +2,57 @@
 
 > 📋 **Note**: For API endpoint examples, see the sample-sharded-app README.md.
 
-## 🎯 **Detailed Implementation Walkthrough**
+## Detailed Implementation Walkthrough
 
 This guide covers the internal mechanics of the account signup process beyond the basic API usage.
 
-### **2. Tenant Mapping Creation**
+### 1. Account Creation (Global Database)
 
 ```java
-// 3. Get latest shard and create tenant-shard mapping
-String latestShardId = shardUtils.getLatestShard();
-shardLookupService.createMapping(account.getId(), latestShardId, "us-east-1");
+// Validate name + email are unique before writing anything
+validateAccountUniqueness(request); // throws IllegalArgumentException if duplicate
+
+// Create account record in global database
+Account account = Account.builder()
+        .name(request.getAccountName())
+        .adminEmail(request.getAdminEmail())
+        .build();
+account = accountRepository.save(account);
 ```
 
 **What happens:**
-- Uses `ShardUtils.getLatestShard()` to find the shard marked as "latest" in configuration
-- Creates entry in `tenant_shard_mapping` table in global database
-- Associates new tenant with the designated shard for new signups
+- Checks `accounts` table for duplicate name (case-insensitive) and duplicate admin email
+- Saves a new row to the `accounts` table in the global database — this is the tenant's identity record
+- The generated `account.getId()` becomes the `tenant_id` used in all subsequent shard operations
+
+### 2. Tenant Mapping Creation
+
+```java
+// Assign to the shard marked latest=true in configuration
+shardUtils.assignTenantToLatestShard(account.getId());
+```
+
+**What happens:**
+- `ShardUtils.assignTenantToLatestShard()` calls `getLatestShard()` then `shardLookupService.createMapping()`
+- Creates a row in `tenant_shard_mapping` in the global database linking `tenant_id → shard_id`
+- All future read/write operations for this tenant are routed to this shard
 
 ### **3. Admin User Setup (Shard Database)**
 
 ```java
-// 4. Set tenant context for subsequent operations
-TenantContext.setTenantId(account.getId());
+// 4. Resolve full TenantInfo (shard DataSource) and set context
+boolean resolved = shardUtils.resolveAndSetTenantContext(account.getId(), false);
 
 // 5. Create ADMIN role first (needed for admin user)
 Role adminRole = createAdminRole(account.getId());
 
 // 6. Create admin user
 User adminUser = createAdminUser(account, request, adminRole.getId());
+// ... TenantContext.clear() called in finally block
 ```
 
 **What happens:**
-- Sets tenant context to route operations to correct shard
+- `resolveAndSetTenantContext` looks up the shard mapping and injects a pre-resolved `TenantInfo` (including shard `DataSource`) into `TenantContext` — routing all subsequent JPA operations to the correct shard
 - Creates ADMIN role in shard database with full permissions
 - Creates admin user with encrypted password in shard database
 
@@ -162,31 +181,19 @@ All tenant-specific data is stored in the designated shard:
 
 ## 🔧 **Configuration**
 
-### **Shard Configuration** (application.yml)
+### Shard Configuration (application.properties)
 
-```yaml
-sharding:
-  shards:
-    shard1:
-      latest: false    # Not accepting new tenants
-      status: "ACTIVE"
-    shard2:
-      latest: true     # ✅ New tenants go here
-      status: "ACTIVE"
-    shard3:
-      latest: false
-      status: "MAINTENANCE"
+```properties
+app.sharding.shards.shard1.latest=false
+app.sharding.shards.shard1.status=ACTIVE
+
+app.sharding.shards.shard2.latest=true
+app.sharding.shards.shard2.status=ACTIVE
+
+app.sharding.shards.shard3.latest=false
+app.sharding.shards.shard3.status=MAINTENANCE
 ```
 
-### **Background Task Configuration**
-
-```yaml
-async:
-  demo-setup:
-    core-pool-size: 2
-    max-pool-size: 4
-    queue-capacity: 100
-    thread-name-prefix: "demo-setup-"
-```
+Only one shard should have `latest=true` at a time. New tenants are always assigned to that shard.
 
 The account signup process is now fully integrated with the sharding architecture, providing automatic tenant placement and complete environment setup! 🚀

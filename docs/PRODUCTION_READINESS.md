@@ -298,5 +298,5 @@ The library is suitable for development and staging, but requires ~3-4 weeks of 
 
 **Questions?** Refer to:
 - [FEATURES.md](FEATURES.md) - Full roadmap
-- [Getting Started](guides/getting-started.md) - Usage guide
-- [Zero Downtime Guide](deployment/zero-downtime.md) - Deployment patterns
+- [Getting Started](getting-started.md) - Usage guide
+- [Zero Downtime Guide](zero-downtime.md) - Deployment patterns

@@ -76,20 +76,20 @@ public abstract class BaseIntegrationTest {
         registry.add("app.sharding.global-db.driver-class-name", globalDb::getDriverClassName);
 
         // Shard 1 configuration
-        registry.add("app.sharding.shard1.master.url", shard1Db::getJdbcUrl);
-        registry.add("app.sharding.shard1.master.username", shard1Db::getUsername);
-        registry.add("app.sharding.shard1.master.password", shard1Db::getPassword);
-        registry.add("app.sharding.shard1.master.driver-class-name", shard1Db::getDriverClassName);
-        registry.add("app.sharding.shard1.latest", () -> "true");
-        registry.add("app.sharding.shard1.region", () -> "us-east-1");
+        registry.add("app.sharding.shards.shard1.master.url", shard1Db::getJdbcUrl);
+        registry.add("app.sharding.shards.shard1.master.username", shard1Db::getUsername);
+        registry.add("app.sharding.shards.shard1.master.password", shard1Db::getPassword);
+        registry.add("app.sharding.shards.shard1.master.driver-class-name", shard1Db::getDriverClassName);
+        registry.add("app.sharding.shards.shard1.latest", () -> "true");
+        registry.add("app.sharding.shards.shard1.region", () -> "us-east-1");
 
         // Shard 2 configuration
-        registry.add("app.sharding.shard2.master.url", shard2Db::getJdbcUrl);
-        registry.add("app.sharding.shard2.master.username", shard2Db::getUsername);
-        registry.add("app.sharding.shard2.master.password", shard2Db::getPassword);
-        registry.add("app.sharding.shard2.master.driver-class-name", shard2Db::getDriverClassName);
-        registry.add("app.sharding.shard2.latest", () -> "false");
-        registry.add("app.sharding.shard2.region", () -> "us-west-2");
+        registry.add("app.sharding.shards.shard2.master.url", shard2Db::getJdbcUrl);
+        registry.add("app.sharding.shards.shard2.master.username", shard2Db::getUsername);
+        registry.add("app.sharding.shards.shard2.master.password", shard2Db::getPassword);
+        registry.add("app.sharding.shards.shard2.master.driver-class-name", shard2Db::getDriverClassName);
+        registry.add("app.sharding.shards.shard2.latest", () -> "false");
+        registry.add("app.sharding.shards.shard2.region", () -> "us-west-2");
 
         // Sharding configuration
         registry.add("app.sharding.tenant-column-names", () -> "account_id");

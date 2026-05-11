@@ -14,6 +14,7 @@ This guide explains how to use the Liquibase-based schema migration system for m
 6. [Rollback](#rollback)
 7. [Best Practices](#best-practices)
 8. [API Reference](#api-reference)
+9. [Idempotency](#idempotency)
 
 ---
 
@@ -626,6 +627,102 @@ curl -X POST http://localhost:8080/api/admin/migrations/rollback \
     "count": 1
   }'
 ```
+
+---
+
+## Idempotency
+
+### TL;DR
+
+- Database changes: **idempotent** — Liquibase skips already-executed changesets
+- Concurrent execution: **prevented** — application-level lock returns HTTP 409
+- Partial failure recovery: **safe** — re-run applies only to failed/pending shards
+
+### How Liquibase Ensures Idempotency
+
+Before executing a changeset, Liquibase checks `DATABASECHANGELOG`. If the changeset ID already exists it is skipped. Each database (global + all shards) has its own changelog table.
+
+```bash
+# First execution
+curl -X POST "localhost:8080/api/admin/migrations/execute"
+# Executes 5 new changesets on each shard
+
+# Second execution
+curl -X POST "localhost:8080/api/admin/migrations/execute"
+# All shards return SKIPPED (0 changesets executed)
+```
+
+### Concurrent Execution Prevention
+
+The orchestrator holds an application-level lock for the duration of a migration run:
+
+```java
+if (!lockManager.tryAcquireLock()) {
+    throw new MigrationException(
+        "Migration already in progress. Cannot start concurrent migration.");
+}
+```
+
+A second request during an active migration returns HTTP 409:
+```json
+{ "error": "MIGRATION_IN_PROGRESS", "message": "Migration already in progress..." }
+```
+
+Liquibase also maintains its own per-database `DATABASECHANGELOGLOCK` table, preventing two Liquibase instances from modifying the same database simultaneously.
+
+### Partial Failure Recovery
+
+Failed shards can be safely retried. Already-migrated shards are skipped automatically:
+
+```
+Wave 1: shard1–5 SKIPPED (already executed)
+Wave 2: shard6–10 SKIPPED (already executed)
+Wave 3: shard11 SKIPPED, shard12 SUCCESS (retried), shard13–15 SUCCESS
+```
+
+### Non-Idempotent Aspects
+
+| Aspect | Idempotent? | Notes |
+|--------|-------------|-------|
+| Database changes | YES | Liquibase DATABASECHANGELOG |
+| Concurrent execution | PREVENTED | Application lock |
+| Per-database locking | PROTECTED | Liquibase DATABASECHANGELOGLOCK |
+| Partial failure recovery | SAFE | Re-run skips completed shards |
+| Execution time | NO | Each run checks all shards |
+| Progress tracking | OVERWRITTEN | ConcurrentHashMap reset per run |
+| Audit logs | NO | Each API call logged separately |
+
+### Idempotency Best Practices
+
+**Write rollback scripts:**
+```xml
+<changeSet id="10" author="dev">
+    <addColumn tableName="users">
+        <column name="email_verified" type="BOOLEAN"/>
+    </addColumn>
+    <rollback>
+        <dropColumn tableName="users" columnName="email_verified"/>
+    </rollback>
+</changeSet>
+```
+
+**Use preconditions as extra safety:**
+```xml
+<changeSet id="11" author="dev">
+    <preConditions onFail="MARK_RAN">
+        <not><columnExists tableName="users" columnName="email_verified"/></not>
+    </preConditions>
+    <addColumn tableName="users">
+        <column name="email_verified" type="BOOLEAN"/>
+    </addColumn>
+</changeSet>
+```
+
+**Never modify an already-executed changeset** — Liquibase detects the checksum mismatch and fails. Create a new changeset instead.
+
+**Use unique, sequential changeset IDs** — reusing IDs causes conflicts.
+
+**Multi-instance deployments**: Liquibase's DB lock handles concurrent app instances, but prefer running migrations from a single designated instance or CI/CD pipeline.
 
 ---
 

@@ -84,17 +84,19 @@ public class Customer {
 
 ### 4. Use Tenant Context
 
+`TenantContext` requires a fully-resolved `TenantInfo` — inject `ShardUtils` to obtain one:
+
 ```java
 @Service
 public class CustomerService {
-    
-    @Autowired
-    private CustomerRepository repository;
-    
+
+    @Autowired private CustomerRepository repository;
+    @Autowired private ShardUtils shardUtils;
+
     public Customer save(Long tenantId, Customer customer) {
-        return TenantContext.executeInTenantContext(tenantId, () -> {
-            return repository.save(customer);
-        });
+        TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, false)
+            .orElseThrow(() -> new ShardLookupException("No active shard for tenant: " + tenantId));
+        return TenantContext.executeInTenantContext(tenantInfo, () -> repository.save(customer));
     }
 }
 ```
@@ -160,17 +162,20 @@ Headers:
 
 ### Tenant Context
 
-All sharded operations must execute within a tenant context:
+All sharded operations require a `TenantInfo` (tenant ID + shard ID + pre-resolved `DataSource`).
+`setTenantId(Long)` and `executeInTenantContext(Long, Supplier)` are deprecated and throw `UnsupportedOperationException`.
 
 ```java
-// Method 1: executeInTenantContext
-TenantContext.executeInTenantContext(tenantId, () -> {
-    return repository.findAll();
-});
+// Scoped execution (service layer)
+TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, false).orElseThrow(...);
+TenantContext.executeInTenantContext(tenantInfo, () -> repository.findAll());
 
-// Method 2: try-with-resources
-try (TenantContext.TenantScope scope = TenantContext.setCurrentTenant(tenantId)) {
-    repository.save(entity);
+// Request-scoped (filter/controller layer)
+shardUtils.resolveAndSetTenantContext(tenantId, false);
+try {
+    // handle request
+} finally {
+    TenantContext.clear();
 }
 ```
 
@@ -226,9 +231,10 @@ public User createUser(UserRequest request, Long accountId) {
 public SignupResponse signup(SignupRequest request) {
     Account account = null;
     try {
-        account = accountRepository.save(newAccount);
-        TenantContext.setTenantId(account.getId());
-        User user = userRepository.save(newUser);
+        account = accountRepository.save(newAccount);           // global DB
+        shardUtils.assignTenantToLatestShard(account.getId());  // create mapping
+        shardUtils.resolveAndSetTenantContext(account.getId(), false); // set shard context
+        User user = userRepository.save(newUser);               // shard DB
         return success(account, user);
     } catch (Exception e) {
         if (account != null) compensate(account);
@@ -266,15 +272,69 @@ mvn test -Dtest="*IT"
 ### Wrong DataSource
 → Check repository package matches configuration
 
+## Background Job Processing (TenantIterator)
+
+`TenantIterator` is a Spring `@Component` for running background jobs across all tenants. It handles shard context setup, batching, and parallel execution automatically.
+
+### Basic usage — process every active tenant
+
+```java
+@Autowired
+private TenantIterator tenantIterator;
+
+// Sequential, default batch size (10)
+tenantIterator.processAllTenants(tenantId -> {
+    // TenantContext is already set — repository calls route to the correct shard
+    reportService.generateDailyReport(tenantId);
+});
+
+// Custom batch size
+tenantIterator.processAllTenants(tenantId -> { ... }, 50);
+```
+
+### Async (parallel) processing
+
+```java
+CompletableFuture<Void> future = tenantIterator.processAllTenantsAsync(tenantId -> {
+    archiveService.archiveOldTickets(tenantId);
+});
+future.join(); // block until all batches complete
+```
+
+### Process tenants in a specific shard
+
+```java
+tenantIterator.processTenantsInShard("shard1", tenantId -> {
+    maintenanceService.runShard1Cleanup(tenantId);
+});
+```
+
+### Collect results across all tenants
+
+```java
+List<ReportSummary> summaries = tenantIterator.mapAllTenants(tenantId ->
+    reportService.getSummary(tenantId)
+);
+```
+
+### Tenant processing statistics
+
+```java
+TenantIterator.TenantProcessingStats stats = tenantIterator.getProcessingStats();
+// stats.activeTenants(), stats.inactiveTenants(), stats.totalTenants()
+```
+
+Only **active** shard mappings (`shard_status = ACTIVE`) are included. Failed tenants throw `TenantIteratorException`.
+
 ## Next Steps
 
 - **Read**: [Migrations Guide](migrations.md) for database schema changes
 - **Read**: [Transactions Guide](transactions.md) for advanced patterns
 - **Read**: [Account Signup Flow](account-signup.md) for signup implementation
-- **Deploy**: [Zero Downtime Guide](../deployment/zero-downtime.md) for production
+- **Deploy**: [Zero Downtime Guide](zero-downtime.md) for production
 
 ## Additional Resources
 
 - **API Docs**: http://localhost:8080/swagger-ui.html (when running)
-- **Specification**: [Technical Specification](../reference/specification.md)
-- **Testing**: [Integration Tests Guide](../testing/integration-tests.md)
+- **Specification**: [Technical Specification](specification.md)
+- **Testing**: [Integration Tests Guide](integration-tests.md)

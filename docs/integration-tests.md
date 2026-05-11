@@ -204,33 +204,51 @@ Added to `sample-sharded-app/pom.xml`:
 
 ### Extending BaseIntegrationTest
 
+`BaseIntegrationTest` provides 3 PostgreSQL containers (`globalDb`, `shard1Db`, `shard2Db`), auto-wired `tenantShardMappingRepository`, and helper methods for running code in tenant context. Each test class creates its own tenant fixtures via the repository.
+
 ```java
 @SpringBootTest
 class MyNewIntegrationTest extends BaseIntegrationTest {
-    
+
     @Autowired
     private MyRepository myRepository;
-    
+
+    private Long tenantId;
+
+    @BeforeEach
+    void setup() {
+        // Create a shard mapping for the test tenant
+        tenantShardMappingRepository.createMapping(42L, "shard1", "us-east-1");
+        tenantId = 42L;
+    }
+
     @Test
     void testMyFeature() {
-        // Use tenant1Account, tenant2Account from base class
-        TenantContext.executeInTenantContext(tenant1Account.getId(), () -> {
-            // Your test code
-        });
+        // executeInTenantContext resolves TenantInfo from the mapping and sets context
+        List<MyEntity> result = executeInTenantContext(tenantId, () ->
+            myRepository.findAll()
+        );
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void testReadOnly() {
+        // Routes to replica DataSource
+        executeInReadOnlyTenantContext(tenantId, () ->
+            myRepository.findAll()
+        );
     }
 }
 ```
 
-### Using AssertJ
+**Available base class helpers:**
+- `executeInTenantContext(Long tenantId, Supplier<T>)` — resolves `TenantInfo` and executes with context set
+- `executeInTenantContext(Long tenantId, Runnable)` — void variant
+- `executeInReadOnlyTenantContext(Long tenantId, Supplier<T>)` — uses read-only `TenantInfo`
+- `hasTenantContext()` — asserts context is/isn't set
+- `tenantShardMappingRepository` — create, look up, or delete mappings
 
-```java
-assertThat(users)
-    .hasSize(2)
-    .allMatch(u -> u.getAccountId().equals(tenantId));
-    
-assertThat(result).isEmpty();
-assertThat(mapping).isNotNull();
-```
+**Note**: `@AfterEach` in the base class calls `TenantContext.clear()` — no manual cleanup needed.
 
 ## Troubleshooting
 

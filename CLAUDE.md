@@ -144,23 +144,39 @@ app.sharding.migration.default-strategy=WAVE  # or SEQUENTIAL, PARALLEL, CANARY
 
 ### Tenant Context Management
 
-All sharded operations MUST execute within TenantContext:
+`TenantContext` requires a fully-resolved `TenantInfo` (with shard DataSource) — never just a tenant ID.
+`setTenantId(Long)` and `executeInTenantContext(Long, Supplier)` are **deprecated and throw `UnsupportedOperationException`**.
 
+**Pattern 1 — filter/controller layer** (set context for a request scope):
 ```java
-// Correct pattern
-TenantContext.executeInTenantContext(tenantId, () -> {
+// Inject ShardUtils, then:
+boolean resolved = shardUtils.resolveAndSetTenantContext(tenantId, false); // false = master
+try {
+    // ... handle request ...
+} finally {
+    TenantContext.clear();
+}
+```
+
+**Pattern 2 — service layer** (scoped execution within a method):
+```java
+TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, false)
+    .orElseThrow(() -> new ShardLookupException("No active shard for tenant: " + tenantId));
+
+TenantContext.executeInTenantContext(tenantInfo, () -> {
     return repository.save(entity);
 });
+```
 
-// Or using try-with-resources
-try (TenantContext.TenantScope scope = TenantContext.setCurrentTenant(tenantId)) {
-    repository.findAll();
-}
+**Read-only context** (routes to replica):
+```java
+TenantInfo tenantInfo = shardUtils.resolveTenantInfo(tenantId, true).orElseThrow(...);
+TenantContext.executeInTenantContext(tenantInfo, () -> repository.findAll());
 ```
 
 ### Async Context Propagation
 
-For `@Async` methods and async operations, use `TenantContextTaskDecorator` to propagate tenant context across thread boundaries:
+For `@Async` methods, use `TenantContextTaskDecorator` to copy the calling thread's `TenantInfo` across thread boundaries:
 
 ```java
 @Bean
@@ -171,13 +187,13 @@ public TaskExecutor taskExecutor() {
 }
 
 @Async("taskExecutor")
-public CompletableFuture<Result> asyncOperation(Long tenantId) {
-    // Tenant context automatically propagated
-    return CompletableFuture.completedFuture(repository.findAll());
+public CompletableFuture<Void> asyncOperation(Long tenantId) {
+    // TenantInfo propagated automatically from calling thread
+    return CompletableFuture.runAsync(() -> repository.findAll());
 }
 ```
 
-**Important**: Context must be set in calling thread before async execution. If not set, manually resolve with `ShardUtils.resolveTenantInfo()` inside async method.
+**Important**: The calling thread must have `TenantContext` set before dispatching. If it may not be set, resolve inside the async method using `shardUtils.resolveAndSetTenantContext(tenantId, false)`.
 
 ### Entity Annotations
 
@@ -285,10 +301,11 @@ Sample app exposes Swagger UI:
 
 ## Key Documentation Files
 
-- `README.md`: Project overview and quick start
-- `doc/MIGRATION_GUIDE.md`: Liquibase migration strategies
-- `doc/TRANSACTION_GUIDE.md`: Transaction patterns for sharded DBs
-- `doc/ZERO_DOWNTIME_BEST_PRACTICES.md`: Production deployment strategies
-- `doc/ACCOUNT_SIGNUP_FLOW.md`: New tenant signup implementation
-- `sample-sharded-app/DATABASE_SETUP.md`: Database provisioning guide
-- `sharding-springboot-starter/SPECIFICATION.md`: Technical specifications
+- `docs/README.md`: Documentation index
+- `docs/migrations.md`: Liquibase migration strategies
+- `docs/transactions.md`: Transaction patterns for sharded DBs
+- `docs/zero-downtime.md`: Production deployment strategies
+- `docs/account-signup.md`: New tenant signup implementation
+- `docs/database-setup.md`: Database provisioning guide
+- `docs/specification.md`: Technical specifications
+- `docs/PRODUCTION_READINESS.md`: Current production readiness status (score: 5.4/10 — NOT ready)

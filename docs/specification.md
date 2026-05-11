@@ -29,41 +29,45 @@ A standalone Spring Boot auto-configuration module for multi-tenancy and databas
 ### 3. Configuration Properties Structure
 ```properties
 # Global Database Configuration
-app.sharding.global-db.url=jdbc:mysql://global-db:3306/global
+app.sharding.global-db.url=jdbc:postgresql://global-db:5432/global
 app.sharding.global-db.username=global_user
 app.sharding.global-db.password=global_pass
+app.sharding.global-db.driver-class-name=org.postgresql.Driver
 app.sharding.global-db.hikari.maximum-pool-size=10
 app.sharding.global-db.hikari.minimum-idle=5
-app.sharding.global-db.hikari.connection-timeout=30000
-app.sharding.global-db.hikari.idle-timeout=600000
-app.sharding.global-db.hikari.max-lifetime=1800000
+app.sharding.global-db.hikari.connection-timeout=30s
+app.sharding.global-db.hikari.idle-timeout=10m
 
-# Shard Configuration (Flat Structure)
-app.sharding.shard1.master.url=jdbc:mysql://shard1-master:3306/db
-app.sharding.shard1.master.username=shard1_user
-app.sharding.shard1.master.password=shard1_pass
-app.sharding.shard1.replica1.url=jdbc:mysql://shard1-replica1:3306/db
-app.sharding.shard1.replica1.username=shard1_user
-app.sharding.shard1.replica1.password=shard1_pass
-app.sharding.shard1.replica2.url=jdbc:mysql://shard1-replica2:3306/db
-app.sharding.shard1.replica2.username=shard1_user
-app.sharding.shard1.replica2.password=shard1_pass
-app.sharding.shard1.hikari.maximum-pool-size=20
-app.sharding.shard1.hikari.minimum-idle=10
-app.sharding.shard1.latest=true  # Mark as latest shard for new signups
+# Shard Configuration — note the 'shards' segment and 'replicas' nesting
+app.sharding.shards.shard1.master.url=jdbc:postgresql://shard1-master:5432/db
+app.sharding.shards.shard1.master.username=shard1_user
+app.sharding.shards.shard1.master.password=shard1_pass
+app.sharding.shards.shard1.master.driver-class-name=org.postgresql.Driver
+app.sharding.shards.shard1.replicas.replica1.url=jdbc:postgresql://shard1-replica1:5432/db
+app.sharding.shards.shard1.replicas.replica1.username=shard1_user
+app.sharding.shards.shard1.replicas.replica1.password=shard1_pass
+app.sharding.shards.shard1.replicas.replica2.url=jdbc:postgresql://shard1-replica2:5432/db
+app.sharding.shards.shard1.replicas.replica2.username=shard1_user
+app.sharding.shards.shard1.replicas.replica2.password=shard1_pass
+app.sharding.shards.shard1.hikari.maximum-pool-size=20
+app.sharding.shards.shard1.hikari.minimum-idle=10
+app.sharding.shards.shard1.latest=true
+app.sharding.shards.shard1.region=us-east-1
+app.sharding.shards.shard1.status=ACTIVE
 
-app.sharding.shard2.master.url=jdbc:mysql://shard2-master:3306/db
-app.sharding.shard2.master.username=shard2_user
-app.sharding.shard2.master.password=shard2_pass
-app.sharding.shard2.replica1.url=jdbc:mysql://shard2-replica1:3306/db
-app.sharding.shard2.replica1.username=shard2_user
-app.sharding.shard2.replica1.password=shard2_pass
-app.sharding.shard2.hikari.maximum-pool-size=20
-app.sharding.shard2.hikari.minimum-idle=10
-app.sharding.shard2.latest=false
+app.sharding.shards.shard2.master.url=jdbc:postgresql://shard2-master:5432/db
+app.sharding.shards.shard2.master.username=shard2_user
+app.sharding.shards.shard2.master.password=shard2_pass
+app.sharding.shards.shard2.replicas.replica1.url=jdbc:postgresql://shard2-replica1:5432/db
+app.sharding.shards.shard2.replicas.replica1.username=shard2_user
+app.sharding.shards.shard2.replicas.replica1.password=shard2_pass
+app.sharding.shards.shard2.hikari.maximum-pool-size=20
+app.sharding.shards.shard2.hikari.minimum-idle=10
+app.sharding.shards.shard2.latest=false
+app.sharding.shards.shard2.status=ACTIVE
 
 # Tenant Configuration
-app.sharding.tenant-column-names=tenant_id,company_id
+app.sharding.tenant-column-names=tenant_id,company_id,account_id
 app.sharding.validation.strictness=STRICT  # STRICT, WARN, LOG, DISABLED
 ```
 
