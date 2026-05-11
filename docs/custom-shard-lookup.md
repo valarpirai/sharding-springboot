@@ -1,24 +1,24 @@
 # Custom ITenantShardMappingRepo Implementation Guide
 
-## 🎯 **Overview**
+## Overview
 
 The sharding-springboot library allows you to provide your own custom implementation of the `ITenantShardMappingRepo` interface to override the default database-backed shard lookup behavior. This enables you to integrate with external systems, implement custom sharding algorithms, or use different data stores for tenant-to-shard mappings.
 
-## 📋 **Architecture**
+## Architecture
 
-### **Default Implementation**
+### Default Implementation
 - **TenantShardMappingRepository**: Database-backed implementation using global database
 - **Caching**: Built-in caching using Caffeine/Redis
 - **Database Agnostic**: Supports PostgreSQL, MySQL, SQL Server
 
-### **Custom Implementation**
+### Custom Implementation
 - **ITenantShardMappingRepo**: Interface that you implement
 - **Auto-Configuration**: Automatically detects and uses custom implementations
 - **Spring Integration**: Full integration with dependency injection
 
-## 🔧 **How to Provide Custom Implementation**
+## How to Provide Custom Implementation
 
-### **Step 1: Create Your Implementation**
+### Step 1: Create Your Implementation
 
 ```java
 @Service
@@ -88,7 +88,7 @@ public class MyCustomShardLookupService implements ITenantShardMappingRepo {
 }
 ```
 
-### **Step 2: Register Your Implementation**
+### Step 2: Register Your Implementation
 
 The auto-configuration will automatically detect your custom implementation:
 
@@ -110,7 +110,7 @@ public class MyShardingConfiguration {
 }
 ```
 
-### **Step 3: Disable Default Implementation (Optional)**
+### Step 3: Disable Default Implementation (Optional)
 
 If you want to completely disable the default database-backed implementation:
 
@@ -129,9 +129,9 @@ public class MyCustomShardLookupService implements ITenantShardMappingRepo {
 }
 ```
 
-## 🚀 **Usage Examples**
+## Usage Examples
 
-### **External API-Based Lookup**
+### External API-Based Lookup
 
 ```java
 @Service
@@ -177,7 +177,7 @@ public class ApiBasedShardLookupService implements ITenantShardMappingRepo {
 }
 ```
 
-### **Configuration-Based Lookup**
+### Configuration-Based Lookup
 
 ```java
 @Service
@@ -203,7 +203,7 @@ public class ConfigBasedShardLookupService implements ITenantShardMappingRepo {
 }
 ```
 
-### **Hybrid Approach (Database + External)**
+### Hybrid Approach (Database + External)
 
 ```java
 @Service
@@ -228,9 +228,9 @@ public class HybridShardLookupService implements ITenantShardMappingRepo {
 }
 ```
 
-## ⚙️ **Integration Points**
+## Integration Points
 
-### **Components That Use ITenantShardMappingRepo**
+### Components That Use ITenantShardMappingRepo
 
 All these components automatically receive your custom implementation:
 
@@ -239,7 +239,7 @@ All these components automatically receive your custom implementation:
 - **TenantIterator**: Batch processing across tenants
 - **ShardSelectorFilter**: HTTP request shard resolution
 
-### **Caching Integration**
+### Caching Integration
 
 Your custom implementation can leverage Spring's caching:
 
@@ -268,7 +268,7 @@ public class CachedCustomShardLookupService implements ITenantShardMappingRepo {
 }
 ```
 
-## 🔧 **Configuration Properties**
+## Configuration Properties
 
 You can still use sharding configuration properties in your custom implementation:
 
@@ -294,24 +294,24 @@ public class MyCustomShardLookupService implements ITenantShardMappingRepo {
 }
 ```
 
-## 🚨 **Important Considerations**
+## Important Considerations
 
-### **Performance**
+### Performance
 - Ensure your custom implementation is performant
 - Consider implementing caching if external calls are involved
 - Use async operations for non-blocking lookups where possible
 
-### **Error Handling**
+### Error Handling
 - Always handle exceptions gracefully
 - Provide meaningful fallback behavior
 - Log errors appropriately for troubleshooting
 
-### **Thread Safety**
+### Thread Safety
 - Ensure your implementation is thread-safe
 - Use concurrent data structures if maintaining state
 - Consider Spring's singleton scope implications
 
-### **Testing**
+### Testing
 ```java
 @ExtendWith(MockitoExtension.class)
 class MyCustomShardLookupServiceTest {
@@ -332,7 +332,7 @@ class MyCustomShardLookupServiceTest {
 }
 ```
 
-## 📊 **Monitoring and Observability**
+## Monitoring and Observability
 
 Your custom implementation can integrate with the observability features:
 

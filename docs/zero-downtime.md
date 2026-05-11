@@ -643,7 +643,3 @@ Step 2: Verify index is valid
 - **GoCardless Blog**: Zero-downtime Postgres migrations series
 - **Postgres Docs**: CONCURRENTLY operations
 
----
-
-**Last Updated**: January 2025
-**Version**: 1.0.0

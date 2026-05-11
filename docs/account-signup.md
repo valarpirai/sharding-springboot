@@ -37,7 +37,7 @@ shardUtils.assignTenantToLatestShard(account.getId());
 - Creates a row in `tenant_shard_mapping` in the global database linking `tenant_id → shard_id`
 - All future read/write operations for this tenant are routed to this shard
 
-### **3. Admin User Setup (Shard Database)**
+### 3. Admin User Setup (Shard Database)
 
 ```java
 // 4. Resolve full TenantInfo (shard DataSource) and set context
@@ -56,7 +56,7 @@ User adminUser = createAdminUser(account, request, adminRole.getId());
 - Creates ADMIN role in shard database with full permissions
 - Creates admin user with encrypted password in shard database
 
-### **4. Background Demo Setup**
+### 4. Background Demo Setup
 
 ```java
 // 7. Trigger background demo setup
@@ -69,9 +69,9 @@ demoSetupService.setupDemoEnvironmentAsync(account.getId());
 - Creates sample user (`andrea@example.com`)
 - Creates 3 sample tickets for demonstration
 
-## 🗄️ **Database Schema Changes**
+## Database Schema Changes
 
-### **Global Database Tables**
+### Global Database Tables
 
 #### **accounts** (Tenant Registry)
 ```sql
@@ -97,7 +97,7 @@ CREATE TABLE tenant_shard_mapping (
 );
 ```
 
-### **Shard Database Tables**
+### Shard Database Tables
 
 All tenant-specific data is stored in the designated shard:
 - **users** - User accounts within each tenant
@@ -105,16 +105,16 @@ All tenant-specific data is stored in the designated shard:
 - **status** - Ticket statuses per tenant
 - **tickets** - Support tickets per tenant
 
-## 📊 **Performance Considerations**
+## Performance Considerations
 
-### **Async Processing Benefits**
+### Async Processing Benefits
 - Demo setup runs in background thread pool
 - Immediate API response for better UX
 - Failure isolation - signup succeeds even if demo setup fails
 
-## 🔄 **What Happens Behind the Scenes**
+## What Happens Behind the Scenes
 
-### **Immediate Operations (Synchronous)**
+### Immediate Operations (Synchronous)
 
 1. **Global Database**:
    ```sql
@@ -128,7 +128,7 @@ All tenant-specific data is stored in the designated shard:
    INSERT INTO users (account_id, email, password_hash, role_id) VALUES (5, 'admin@acme.com', '$2a$10$...', 25);
    ```
 
-### **Background Operations (Asynchronous)**
+### Background Operations (Asynchronous)
 
 3. **Additional Roles**:
    ```sql
@@ -157,29 +157,7 @@ All tenant-specific data is stored in the designated shard:
      (5, 'Bug: Dashboard Loading Slow', 26, 22);
    ```
 
-## 🏗️ **Architecture Benefits**
-
-### **✅ Automatic Shard Assignment**
-- New tenants automatically assigned to latest available shard
-- No manual intervention required for tenant placement
-- Configurable shard selection strategy
-
-### **✅ Tenant Isolation**
-- Each tenant's data stored in designated shard
-- Complete data isolation between tenants
-- Scalable tenant-per-shard architecture
-
-### **✅ Consistent Context Management**
-- Tenant context automatically set during signup
-- Background jobs work with proper shard context
-- Seamless routing for all tenant operations
-
-### **✅ Demo Environment Ready**
-- Immediate usability with sample data
-- Pre-configured roles and permissions
-- Ready-to-use sample tickets for testing
-
-## 🔧 **Configuration**
+## Configuration
 
 ### Shard Configuration (application.properties)
 
@@ -196,4 +174,4 @@ app.sharding.shards.shard3.status=MAINTENANCE
 
 Only one shard should have `latest=true` at a time. New tenants are always assigned to that shard.
 
-The account signup process is now fully integrated with the sharding architecture, providing automatic tenant placement and complete environment setup! 🚀
+Only one shard should have `latest=true` at a time. New tenants are always assigned to that shard.

@@ -724,25 +724,3 @@ Wave 3: shard11 SKIPPED, shard12 SUCCESS (retried), shard13–15 SUCCESS
 
 **Multi-instance deployments**: Liquibase's DB lock handles concurrent app instances, but prefer running migrations from a single designated instance or CI/CD pipeline.
 
----
-
-## Additional Resources
-
-- [Liquibase Documentation](https://docs.liquibase.com)
-- [Spring Boot Liquibase Integration](https://docs.spring.io/spring-boot/docs/current/reference/html/howto.html#howto.data-initialization.migration-tool.liquibase)
-- [Database Refactoring Best Practices](https://www.liquibase.org/get-started/best-practices)
-
----
-
-## Support
-
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review application logs for error details
-3. Consult the Liquibase documentation
-4. Contact your DevOps team for production migrations
-
----
-
-**Last Updated**: January 2025
-**Version**: 1.0.0

@@ -328,13 +328,6 @@ Only **active** shard mappings (`shard_status = ACTIVE`) are included. Failed te
 
 ## Next Steps
 
-- **Read**: [Migrations Guide](migrations.md) for database schema changes
-- **Read**: [Transactions Guide](transactions.md) for advanced patterns
-- **Read**: [Account Signup Flow](account-signup.md) for signup implementation
-- **Deploy**: [Zero Downtime Guide](zero-downtime.md) for production
+See [docs/README.md](README.md) for the full documentation index.
 
-## Additional Resources
-
-- **API Docs**: http://localhost:8080/swagger-ui.html (when running)
-- **Specification**: [Technical Specification](specification.md)
-- **Testing**: [Integration Tests Guide](integration-tests.md)
+Swagger UI is available at http://localhost:8080/swagger-ui.html when the sample app is running.

@@ -763,7 +763,3 @@ private User createUserInternal(CreateUserRequest request) {
 | Background jobs | `@Transactional` with `executeInTenantContextAsync` |
 | Complex conditional logic | `TransactionTemplate` |
 
----
-
-**Version**: 1.0.0
-**Last Updated**: January 2025

@@ -137,12 +137,6 @@ Support all HikariCP properties:
 - DataSource proxy registration
 - Configuration validation
 
-### 7. Integration
-- README with integration instructions
-- Configuration examples
-- Usage patterns
-- Migration guidelines
-
 ## Architecture Patterns
 - **Auto-Configuration**: Spring Boot starter pattern
 - **Proxy Pattern**: DataSource interception

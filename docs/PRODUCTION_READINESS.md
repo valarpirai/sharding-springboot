@@ -6,7 +6,7 @@
 
 ---
 
-## ✅ What's Working Well
+## What's Working Well
 
 ### Core Functionality (Strong)
 - ✅ Directory-based tenant-to-shard mapping
@@ -39,7 +39,7 @@
 
 ---
 
-## ⚠️ Critical Gaps (Must Fix Before Production)
+## Critical Gaps (Must Fix Before Production)
 
 ### 1. **No Observability** (CRITICAL)
 **Problem**: Cannot monitor or debug in production
@@ -103,7 +103,7 @@
 
 ---
 
-## 📊 Production Readiness Score
+## Production Readiness Score
 
 | Category | Score | Status | Critical? |
 |----------|-------|--------|-----------|
@@ -119,7 +119,7 @@
 
 ---
 
-## 🚦 Production Readiness Criteria
+## Production Readiness Criteria
 
 ### Minimum for Production (MVP)
 **Must have before ANY production deployment:**
@@ -156,7 +156,7 @@
 
 ---
 
-## 🎯 Path to Production
+## Path to Production
 
 ### Phase 1: Minimum Viable (2-3 weeks)
 **Goal**: Safe for production with basic monitoring
@@ -191,7 +191,7 @@
 
 ---
 
-## 🔍 Current Deployment Risks
+## Current Deployment Risks
 
 ### High Risk (Do NOT Deploy)
 1. **Shard failure = Complete outage**
@@ -225,7 +225,7 @@
 
 ---
 
-## 💡 Recommendations
+## Recommendations
 
 ### For Development/Staging
 **Current state is acceptable for:**
@@ -251,7 +251,7 @@
 
 ---
 
-## 📋 Production Deployment Checklist
+## Production Deployment Checklist
 
 Before deploying to production, ensure:
 
@@ -276,7 +276,7 @@ Before deploying to production, ensure:
 
 ---
 
-## 🎓 Summary
+## Summary
 
 ### Current State
 The library has **excellent core functionality** and **strong testing**, but lacks **critical production features** for observability, resilience, and security.
@@ -294,9 +294,3 @@ The library is suitable for development and staging, but requires ~3-4 weeks of 
 
 **Total investment**: 65-90 hours for production readiness
 
----
-
-**Questions?** Refer to:
-- [FEATURES.md](FEATURES.md) - Full roadmap
-- [Getting Started](getting-started.md) - Usage guide
-- [Zero Downtime Guide](zero-downtime.md) - Deployment patterns
